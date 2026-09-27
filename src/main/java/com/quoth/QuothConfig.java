@@ -34,6 +34,18 @@ public interface QuothConfig extends Config
 		return RevealMode.WORD;
 	}
 
+	@ConfigItem(
+		keyName = "clickToFinish",
+		name = "Click to finish",
+		description = "While a line is appearing, the first click on continue (or Space) shows the rest; the next continues",
+		section = textSection,
+		position = 3
+	)
+	default boolean clickToFinish()
+	{
+		return true;
+	}
+
 	// Own keys per mode: a value stored under an older shared key would override new defaults.
 	@Range(min = 10, max = 600)
 	@Units(Units.MILLISECONDS)
@@ -106,7 +118,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "speakerPitch",
 		name = "Voice per speaker",
-		description = "Each NPC gets a pitch of their own, fixed by their name. Not for game sounds",
+		description = "Each NPC gets a pitch of their own from their name; goblins, dwarves and other big folk sound lower, gnomes and imps higher. Not for game sounds",
 		section = voiceSection,
 		position = 3
 	)

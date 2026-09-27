@@ -148,6 +148,29 @@ final class Reveal
 		return ' ';
 	}
 
+	static final int MOOD_QUESTION = 1;
+	static final int MOOD_EXCLAIM = 2;
+
+	/** How a step should sound: lifted if it ends a question, louder if it ends an exclamation. */
+	int mood(int step)
+	{
+		if (step < 0 || step >= steps.size())
+		{
+			return 0;
+		}
+		String t = steps.get(step).replaceAll("<[^>]*>", "").trim();
+		while (!t.isEmpty() && "\"')".indexOf(t.charAt(t.length() - 1)) >= 0)
+		{
+			t = t.substring(0, t.length() - 1);
+		}
+		int mood = 0;
+		for (int i = t.length() - 1; i >= 0 && "?!".indexOf(t.charAt(i)) >= 0; i--)
+		{
+			mood |= t.charAt(i) == '?' ? MOOD_QUESTION : MOOD_EXCLAIM;
+		}
+		return mood;
+	}
+
 	int size()
 	{
 		return steps.size();

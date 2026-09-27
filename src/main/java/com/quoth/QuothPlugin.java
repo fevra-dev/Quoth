@@ -1,12 +1,14 @@
 package com.quoth;
 
 import com.google.inject.Provides;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.util.Random;
 import javax.inject.Inject;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.events.ClientTick;
+import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetType;
@@ -18,6 +20,7 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.events.PluginChanged;
+import net.runelite.client.input.KeyListener;
 import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -50,6 +53,14 @@ public class QuothPlugin extends Plugin
 	// keeps a voice alive, and a cap keeps every sample a short stab.
 	private static final int VARIATION_CENTS = 30;
 	private static final int STAB_MS = 150;
+	private static final int QUESTION_LIFT = 3;
+	private static final double EXCLAIM_GAIN = 1.5;
+
+	private static final int[] DIALOGUE_CONTINUE = {
+		InterfaceID.ChatLeft.CONTINUE,
+		InterfaceID.ChatRight.CONTINUE,
+		InterfaceID.Messagebox.CONTINUE,
+	};
 
 	private static final String IMMERSIVE_DIALOGUE = "ImmersiveDialoguePlugin";
 	private static final String IMMERSIVE_GROUP = "immersivedialogue";
@@ -111,6 +122,31 @@ public class QuothPlugin extends Plugin
 	private long startNanos;
 	private int shown;
 	private boolean done;
+	/** Read from the key thread, so volatile: true while a line is still appearing. */
+	private volatile boolean revealing;
+
+	private final KeyListener spaceToFinish = new KeyListener()
+	{
+		@Override
+		public void keyTyped(KeyEvent e)
+		{
+		}
+
+		@Override
+		public void keyPressed(KeyEvent e)
+		{
+			if (e.getKeyCode() == KeyEvent.VK_SPACE && revealing && config.clickToFinish())
+			{
+				e.consume();
+				clientThread.invoke(QuothPlugin.this::finishLine);
+			}
+		}
+
+		@Override
+		public void keyReleased(KeyEvent e)
+		{
+		}
+	};
 
 	@Provides
 	QuothConfig provideConfig(ConfigManager configManager)
@@ -123,6 +159,7 @@ public class QuothPlugin extends Plugin
 	{
 		player.start();
 		keyManager.registerKeyListener(rollListener);
+		keyManager.registerKeyListener(spaceToFinish);
 		immersiveActive = isImmersiveActive();
 	}
 
@@ -130,6 +167,7 @@ public class QuothPlugin extends Plugin
 	protected void shutDown()
 	{
 		keyManager.unregisterKeyListener(rollListener);
+		keyManager.unregisterKeyListener(spaceToFinish);
 		player.stop();
 		clientThread.invoke(this::release);
 	}
@@ -199,12 +237,13 @@ public class QuothPlugin extends Plugin
 			// Immersive shows the line whole; Quoth still speaks it, on its own rhythm.
 			long elapsedMs = (System.nanoTime() - voicedStart) / 1_000_000L;
 			int target = voicedReveal.startedBy(elapsedMs, Math.max(1, voicedDelay()));
+			int mood = target > voicedShown ? voicedReveal.mood(target - 1) : 0;
 			boolean blip = target > voicedShown && (config.mode() != RevealMode.LETTER
-				|| voicedShown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP || voicedShown == 0);
+				|| voicedShown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP || voicedShown == 0 || mood != 0);
 			voicedShown = Math.max(voicedShown, target);
 			if (blip && config.voice() != BlipSound.OFF)
 			{
-				playBlip(config.voice());
+				playBlip(config.voice(), mood);
 			}
 			return;
 		}
@@ -389,9 +428,10 @@ public class QuothPlugin extends Plugin
 		boolean stepped = target > shown;
 
 		BlipSound voice = config.voice();
+		int mood = stepped ? reveal.mood(target - 1) : 0;
 		boolean blip = stepped && voice != BlipSound.OFF && (mode != RevealMode.LETTER
 			|| shown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP
-			|| shown == 0);
+			|| shown == 0 || mood != 0);
 		shown = Math.max(shown, target);
 
 		boolean finished = mode == RevealMode.FADE
@@ -399,10 +439,7 @@ public class QuothPlugin extends Plugin
 			: shown >= reveal.size();
 		if (finished)
 		{
-			// Done: hand the box back to the game's own widget, untouched.
-			done = true;
-			source.setHidden(false);
-			copy.setHidden(true);
+			finishLine();
 		}
 		else if (mode == RevealMode.FADE)
 		{
@@ -414,16 +451,67 @@ public class QuothPlugin extends Plugin
 		}
 		if (blip)
 		{
-			playBlip(voice);
+			playBlip(voice, mood);
+		}
+		revealing = !done;
+	}
+
+	/** Shows the rest of the line at once and hands the box back to the game's own widget. */
+	private void finishLine()
+	{
+		if (copy == null || done)
+		{
+			return;
+		}
+		done = true;
+		revealing = false;
+		shown = reveal.size();
+		source.setHidden(false);
+		copy.setHidden(true);
+	}
+
+	/**
+	 * While a line is appearing, the first click on continue finishes it instead of moving on,
+	 * so no line is skipped half-read. The click after that continues as normal.
+	 */
+	@Subscribe
+	public void onMenuOptionClicked(MenuOptionClicked event)
+	{
+		if (!revealing || !config.clickToFinish())
+		{
+			return;
+		}
+		for (int id : DIALOGUE_CONTINUE)
+		{
+			if (event.getParam1() == id)
+			{
+				event.consume();
+				finishLine();
+				return;
+			}
 		}
 	}
 
 	private void playBlip(BlipSound voice)
 	{
+		playBlip(voice, 0);
+	}
+
+	private void playBlip(BlipSound voice, int mood)
+	{
 		if (voice.isOwnAudio())
 		{
 			int pitch = config.pitch() + (config.speakerPitch() ? speakerPitch : 0);
-			player.play(voice, config.sampleFile(), pitch, VARIATION_CENTS, config.volume(), STAB_MS);
+			int volume = config.volume();
+			if ((mood & Reveal.MOOD_QUESTION) != 0)
+			{
+				pitch += QUESTION_LIFT;
+			}
+			if ((mood & Reveal.MOOD_EXCLAIM) != 0)
+			{
+				volume = (int) Math.min(100, Math.round(volume * EXCLAIM_GAIN));
+			}
+			player.play(voice, config.sampleFile(), pitch, VARIATION_CENTS, volume, STAB_MS);
 		}
 		else
 		{
@@ -478,6 +566,7 @@ public class QuothPlugin extends Plugin
 	/** Restores the game's widget and drops the copy. Safe to call at any time. */
 	private void release()
 	{
+		revealing = false;
 		if (copy != null)
 		{
 			copy.setHidden(true);
