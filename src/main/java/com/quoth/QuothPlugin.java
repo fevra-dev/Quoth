@@ -46,6 +46,11 @@ public class QuothPlugin extends Plugin
 	// give it its own setting if one ratio does not suit every speed.
 	private static final int FADE_WORDS = 3;
 
+	// Fixed character for Quoth's own audio, so the settings stay few: a little random pitch
+	// keeps a voice alive, and a cap keeps every sample a short stab.
+	private static final int VARIATION_CENTS = 30;
+	private static final int STAB_MS = 150;
+
 	private static final String IMMERSIVE_DIALOGUE = "ImmersiveDialoguePlugin";
 	private static final String IMMERSIVE_GROUP = "immersivedialogue";
 	private static final int IMMERSIVE_DEFAULT_SPEED = 35;
@@ -80,6 +85,11 @@ public class QuothPlugin extends Plugin
 	private String voicedLine;
 	private long voicedStart;
 	private int voicedChars;
+	private Reveal voicedReveal;
+	private int voicedShown;
+	private int speakerPitch;
+	private int inkFrom;
+	private int inkTo;
 
 	private final HotkeyListener rollListener = new HotkeyListener(() -> config.rollKey())
 	{
@@ -156,19 +166,18 @@ public class QuothPlugin extends Plugin
 	 */
 	private void voiceImmersive()
 	{
-		Boolean typing = configManager.getConfiguration(IMMERSIVE_GROUP, "voiceBlips", Boolean.class);
+		boolean typing = Boolean.TRUE.equals(configManager.getConfiguration(IMMERSIVE_GROUP, "voiceBlips", Boolean.class));
 		String body = null;
-		if (Boolean.TRUE.equals(typing))
+		int speakerId = -1;
+		for (int id : DIALOGUE_TEXT)
 		{
-			for (int id : DIALOGUE_TEXT)
+			Widget w = client.getWidget(id);
+			// Immersive hides the native widgets but leaves their text intact.
+			if (w != null && w.getText() != null && !w.getText().isEmpty())
 			{
-				Widget w = client.getWidget(id);
-				// Immersive hides the native widgets but leaves their text intact.
-				if (w != null && w.getText() != null && !w.getText().isEmpty())
-				{
-					body = Text.removeTags(w.getText().replace("<br>", " "));
-					break;
-				}
+				body = Text.removeTags(w.getText().replace("<br>", " "));
+				speakerId = id;
+				break;
 			}
 		}
 		if (body == null)
@@ -181,6 +190,23 @@ public class QuothPlugin extends Plugin
 			voicedLine = body;
 			voicedStart = System.nanoTime();
 			voicedChars = 0;
+			voicedShown = 0;
+			voicedReveal = Reveal.of(body, config.mode());
+			speakerPitch = speakerPitchFor(speakerId);
+		}
+		if (!typing)
+		{
+			// Immersive shows the line whole; Quoth still speaks it, on its own rhythm.
+			long elapsedMs = (System.nanoTime() - voicedStart) / 1_000_000L;
+			int target = voicedReveal.startedBy(elapsedMs, Math.max(1, voicedDelay()));
+			boolean blip = target > voicedShown && (config.mode() != RevealMode.LETTER
+				|| voicedShown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP || voicedShown == 0);
+			voicedShown = Math.max(voicedShown, target);
+			if (blip && config.voice() != BlipSound.OFF)
+			{
+				playBlip(config.voice());
+			}
+			return;
 		}
 
 		Integer speed = configManager.getConfiguration(IMMERSIVE_GROUP, "textSpeed", Integer.class);
@@ -204,6 +230,22 @@ public class QuothPlugin extends Plugin
 		{
 			playBlip(voice);
 		}
+	}
+
+	private int voicedDelay()
+	{
+		return config.mode() == RevealMode.LETTER ? config.letterDelay() : config.wordDelay();
+	}
+
+	/** An NPC speaking gets a pitch from their name; the player and message boxes stay central. */
+	private int speakerPitchFor(int textWidgetId)
+	{
+		if (textWidgetId != InterfaceID.ChatLeft.TEXT)
+		{
+			return 0;
+		}
+		Widget name = client.getWidget(InterfaceID.ChatLeft.NAME);
+		return Speaker.pitchFor(name == null ? null : name.getText());
 	}
 
 	private static int nonSpaceIndex(String s, int i)
@@ -300,6 +342,9 @@ public class QuothPlugin extends Plugin
 		startNanos = System.nanoTime();
 		shown = 0;
 		done = false;
+		speakerPitch = speakerPitchFor(widget.getId());
+		inkTo = widget.getTextColor() & 0xffffff;
+		inkFrom = Speaker.faintOf(inkTo);
 		if (reveal.size() == 0)
 		{
 			return;
@@ -340,7 +385,7 @@ public class QuothPlugin extends Plugin
 		long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L;
 		int delay = Math.max(1, delay());
 		int fadeMs = delay * FADE_WORDS;
-		int target = (int) Math.min(reveal.size(), 1 + elapsedMs / delay);
+		int target = reveal.startedBy(elapsedMs, delay);
 		boolean stepped = target > shown;
 
 		BlipSound voice = config.voice();
@@ -350,7 +395,7 @@ public class QuothPlugin extends Plugin
 		shown = Math.max(shown, target);
 
 		boolean finished = mode == RevealMode.FADE
-			? elapsedMs >= reveal.fadeDuration(delay, fadeMs)
+			? elapsedMs >= reveal.inkedBy(delay, fadeMs)
 			: shown >= reveal.size();
 		if (finished)
 		{
@@ -361,7 +406,7 @@ public class QuothPlugin extends Plugin
 		}
 		else if (mode == RevealMode.FADE)
 		{
-			copy.setText(reveal.fade(elapsedMs, delay, fadeMs));
+			copy.setText(reveal.inked(elapsedMs, delay, fadeMs, inkFrom, inkTo));
 		}
 		else if (stepped)
 		{
@@ -377,7 +422,8 @@ public class QuothPlugin extends Plugin
 	{
 		if (voice.isOwnAudio())
 		{
-			player.play(voice, config.sampleFile(), config.pitch(), config.pitchVariation(), config.volume(), config.length());
+			int pitch = config.pitch() + (config.speakerPitch() ? speakerPitch : 0);
+			player.play(voice, config.sampleFile(), pitch, VARIATION_CENTS, config.volume(), STAB_MS);
 		}
 		else
 		{

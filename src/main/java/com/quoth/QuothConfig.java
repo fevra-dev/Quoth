@@ -67,7 +67,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "voice",
 		name = "Voice",
-		description = "Soft, Warm, Reed and Your samples are played by Quoth and can be pitched and shortened. Game sounds follow the in-game effects volume",
+		description = "Soft, Warm, Reed and Your samples are played by Quoth and can be pitched. Game sounds follow the in-game effects volume",
 		section = voiceSection,
 		position = 0
 	)
@@ -101,31 +101,18 @@ public interface QuothConfig extends Config
 		return 0;
 	}
 
-	@Range(min = 0, max = 300)
+
+
 	@ConfigItem(
-		keyName = "pitchVariation",
-		name = "Pitch variation",
-		description = "Random spread in cents per word, so the voice sounds alive. 100 cents is a semitone. Not for game sounds",
+		keyName = "speakerPitch",
+		name = "Voice per speaker",
+		description = "Each NPC gets a pitch of their own, fixed by their name. Not for game sounds",
 		section = voiceSection,
 		position = 3
 	)
-	default int pitchVariation()
+	default boolean speakerPitch()
 	{
-		return 40;
-	}
-
-	@Range(min = 10, max = 250)
-	@Units(Units.MILLISECONDS)
-	@ConfigItem(
-		keyName = "length",
-		name = "Length",
-		description = "Cut each blip to this long, for a shorter stab. Game sounds cannot be shortened",
-		section = voiceSection,
-		position = 4
-	)
-	default int length()
-	{
-		return 250;
+		return true;
 	}
 
 	@Range(min = 0, max = 100)
@@ -135,7 +122,7 @@ public interface QuothConfig extends Config
 		name = "Volume",
 		description = "Not for game sounds; they use the in-game effects volume",
 		section = voiceSection,
-		position = 5
+		position = 4
 	)
 	default int volume()
 	{
