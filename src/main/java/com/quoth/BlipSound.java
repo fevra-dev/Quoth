@@ -1,5 +1,6 @@
 package com.quoth;
 
+import java.util.Arrays;
 import java.util.Random;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ public enum BlipSound
 	SOUND_2269("2269", 2269),
 	SOUND_2276("2276", 2276),
 	SOUND_2278("2278", 2278),
-	RANDOM("Random", -1),
+	RANDOM("Random (pool)", -1),
 	CUSTOM("Custom", -1);
 
 	private static final BlipSound[] PRESETS = {BOOP, SOUND_2269, SOUND_2276, SOUND_2278};
@@ -39,9 +40,29 @@ public enum BlipSound
 		return null;
 	}
 
-	static int randomPresetId(Random random)
+	static final String DEFAULT_POOL = "2266, 2269, 2276, 2278";
+
+	/**
+	 * Parses a comma-separated list of sound IDs, skipping anything that is not a
+	 * non-negative number. An empty result falls back to the presets, so Random is never silent.
+	 */
+	static int[] parsePool(String text)
 	{
-		return PRESETS[random.nextInt(PRESETS.length)].id;
+		int[] ids = new int[0];
+		if (text != null)
+		{
+			ids = Arrays.stream(text.split(","))
+				.map(String::trim)
+				.filter(s -> s.matches("\\d{1,6}"))
+				.mapToInt(Integer::parseInt)
+				.toArray();
+		}
+		return ids.length > 0 ? ids : Arrays.stream(PRESETS).mapToInt(BlipSound::getId).toArray();
+	}
+
+	static int pick(int[] pool, Random random)
+	{
+		return pool[random.nextInt(pool.length)];
 	}
 
 	@Override

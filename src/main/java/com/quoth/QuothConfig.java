@@ -34,7 +34,7 @@ public interface QuothConfig extends Config
 	)
 	default int wordDelay()
 	{
-		return 120;
+		return 130;
 	}
 
 	@Range(min = 10, max = 300)
@@ -70,5 +70,16 @@ public interface QuothConfig extends Config
 	default int soundId()
 	{
 		return SoundEffectID.UI_BOOP;
+	}
+
+	@ConfigItem(
+		keyName = "randomPool",
+		name = "Random pool",
+		description = "Sound IDs that Random picks from, separated by commas. Add any you like from Custom",
+		position = 5
+	)
+	default String randomPool()
+	{
+		return BlipSound.DEFAULT_POOL;
 	}
 }

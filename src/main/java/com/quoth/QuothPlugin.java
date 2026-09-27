@@ -158,7 +158,7 @@ public class QuothPlugin extends Plugin
 			case CUSTOM:
 				return config.soundId();
 			case RANDOM:
-				return BlipSound.randomPresetId(random);
+				return BlipSound.pick(BlipSound.parsePool(config.randomPool()), random);
 			default:
 				return config.blip().getId();
 		}
