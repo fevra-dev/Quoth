@@ -3,17 +3,24 @@ package com.quoth;
 import com.google.inject.Provides;
 import java.util.Random;
 import javax.inject.Inject;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.PluginChanged;
+import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.util.HotkeyListener;
 
 @PluginDescriptor(
 	name = "Quoth",
@@ -32,6 +39,11 @@ public class QuothPlugin extends Plugin
 	// A blip per letter sounds like a drill; one per this many letters reads as speech.
 	private static final int LETTERS_PER_BLIP = 3;
 
+	private static final String IMMERSIVE_DIALOGUE = "ImmersiveDialoguePlugin";
+
+	// Size of the game's synth list: symbols/synth.sym in Joshua-F/osrs-dumps, 2026-09-27.
+	private static final int SYNTH_COUNT = 12155;
+
 	@Inject
 	private Client client;
 
@@ -44,7 +56,27 @@ public class QuothPlugin extends Plugin
 	@Inject
 	private ConfigManager configManager;
 
+	@Inject
+	private PluginManager pluginManager;
+
+	@Inject
+	private KeyManager keyManager;
+
+	@Inject
+	private ChatMessageManager chatMessageManager;
+
 	private final Random random = new Random();
+	private final BlipPlayer player = new BlipPlayer();
+	private boolean immersiveActive;
+
+	private final HotkeyListener rollListener = new HotkeyListener(() -> config.rollKey())
+	{
+		@Override
+		public void hotkeyPressed()
+		{
+			clientThread.invoke(QuothPlugin.this::roll);
+		}
+	};
 
 	// The game's own text widget is never edited: other plugins (overhead text, dialogue
 	// loggers) read it every tick and would see each partial line as a new one. Instead the
@@ -64,14 +96,64 @@ public class QuothPlugin extends Plugin
 	}
 
 	@Override
+	protected void startUp()
+	{
+		player.start();
+		keyManager.registerKeyListener(rollListener);
+		immersiveActive = isImmersiveActive();
+	}
+
+	@Override
 	protected void shutDown()
 	{
+		keyManager.unregisterKeyListener(rollListener);
+		player.stop();
 		clientThread.invoke(this::release);
+	}
+
+	/**
+	 * Immersive Dialogue rebuilds the chatbox every frame and has its own typing and voice
+	 * blips, so running both would fight over the same widgets and double every sound.
+	 */
+	@Subscribe
+	public void onPluginChanged(PluginChanged event)
+	{
+		immersiveActive = isImmersiveActive();
+	}
+
+	private boolean isImmersiveActive()
+	{
+		for (Plugin p : pluginManager.getPlugins())
+		{
+			if (IMMERSIVE_DIALOGUE.equals(p.getClass().getSimpleName()) && pluginManager.isPluginActive(p))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private void roll()
+	{
+		int id = random.nextInt(SYNTH_COUNT);
+		// The sync handler moves Voice to the matching preset or Custom.
+		configManager.setConfiguration(QuothConfig.GROUP, "soundId", id);
+		client.playSoundEffect(id);
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.GAMEMESSAGE)
+			.runeLiteFormattedMessage("Quoth: sound " + id + " (now your Custom sound ID)")
+			.build());
 	}
 
 	@Subscribe
 	public void onClientTick(ClientTick tick)
 	{
+		if (immersiveActive)
+		{
+			release();
+			return;
+		}
+
 		Widget widget = null;
 		for (int id : DIALOGUE_TEXT)
 		{
@@ -160,8 +242,8 @@ public class QuothPlugin extends Plugin
 			return;
 		}
 
-		int soundId = soundId();
-		boolean blip = soundId >= 0 && (mode == RevealMode.WORD
+		BlipSound voice = config.voice();
+		boolean blip = voice != BlipSound.OFF && (mode == RevealMode.WORD
 			|| shown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP
 			|| shown == 0);
 		shown = target;
@@ -177,26 +259,25 @@ public class QuothPlugin extends Plugin
 		}
 		if (blip)
 		{
-			client.playSoundEffect(soundId);
+			playBlip(voice);
+		}
+	}
+
+	private void playBlip(BlipSound voice)
+	{
+		if (voice.isBundled())
+		{
+			player.play(voice, config.pitch(), config.pitchVariation(), config.volume());
+		}
+		else
+		{
+			client.playSoundEffect(voice == BlipSound.CUSTOM ? config.soundId() : voice.getId());
 		}
 	}
 
 	private int delay()
 	{
 		return mode == RevealMode.WORD ? config.wordDelay() : config.letterDelay();
-	}
-
-	private int soundId()
-	{
-		switch (config.blip())
-		{
-			case CUSTOM:
-				return config.soundId();
-			case RANDOM:
-				return BlipSound.pick(BlipSound.parsePool(config.randomPool()), random);
-			default:
-				return config.blip().getId();
-		}
 	}
 
 	/**
@@ -214,23 +295,23 @@ public class QuothPlugin extends Plugin
 			return;
 		}
 
-		BlipSound blip = config.blip();
+		BlipSound voice = config.voice();
 		int id = config.soundId();
-		if ("blip".equals(event.getKey()))
+		if ("voice".equals(event.getKey()))
 		{
-			if (blip.isPreset() && id != blip.getId())
+			if (voice.isGamePreset() && id != voice.getId())
 			{
-				configManager.setConfiguration(QuothConfig.GROUP, "soundId", blip.getId());
+				configManager.setConfiguration(QuothConfig.GROUP, "soundId", voice.getId());
 			}
 		}
 		else if ("soundId".equals(event.getKey()))
 		{
-			if (blip == BlipSound.CUSTOM || (blip.isPreset() && id == blip.getId()))
+			if (voice == BlipSound.CUSTOM || (voice.isGamePreset() && id == voice.getId()))
 			{
 				return;
 			}
 			BlipSound match = BlipSound.presetFor(id);
-			configManager.setConfiguration(QuothConfig.GROUP, "blip", match != null ? match : BlipSound.CUSTOM);
+			configManager.setConfiguration(QuothConfig.GROUP, "voice", match != null ? match : BlipSound.CUSTOM);
 		}
 	}
 
