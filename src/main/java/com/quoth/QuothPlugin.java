@@ -7,6 +7,7 @@ import net.runelite.api.Client;
 import net.runelite.api.events.ClientTick;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
+import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -45,9 +46,12 @@ public class QuothPlugin extends Plugin
 
 	private final Random random = new Random();
 
-	private int trackedId = -1;
+	// The game's own text widget is never edited: other plugins (overhead text, dialogue
+	// loggers) read it every tick and would see each partial line as a new one. Instead the
+	// original is hidden with its full text intact and the reveal is drawn in a copy on top.
+	private Widget source;
+	private Widget copy;
 	private String fullText;
-	private String lastSet;
 	private Reveal reveal;
 	private RevealMode mode;
 	private long startNanos;
@@ -62,7 +66,7 @@ public class QuothPlugin extends Plugin
 	@Override
 	protected void shutDown()
 	{
-		clientThread.invoke(this::finishNow);
+		clientThread.invoke(this::release);
 	}
 
 	@Subscribe
@@ -72,7 +76,8 @@ public class QuothPlugin extends Plugin
 		for (int id : DIALOGUE_TEXT)
 		{
 			Widget w = client.getWidget(id);
-			if (w != null && !w.isHidden())
+			// The one we hid is still the live one; any other must be visible to count.
+			if (w != null && (w == source || !w.isHidden()))
 			{
 				widget = w;
 				break;
@@ -82,9 +87,7 @@ public class QuothPlugin extends Plugin
 		if (widget == null)
 		{
 			// Dialogue closed. Forget it, so an identical next line still animates.
-			trackedId = -1;
-			fullText = null;
-			lastSet = null;
+			release();
 			return;
 		}
 
@@ -94,37 +97,60 @@ public class QuothPlugin extends Plugin
 			return;
 		}
 
-		boolean ours = widget.getId() == trackedId && current.equals(lastSet);
-		if (!ours)
+		// ponytail: a new line is detected by its text changing. Two identical lines in a row
+		// on the same widget without the box closing will not re-animate; hook WidgetLoaded if that shows up.
+		if (widget != source || !current.equals(fullText))
 		{
-			// ponytail: a new line is detected by its text changing. Two identical lines in a row
-			// without the box closing between them will not re-animate; hook WidgetLoaded if that shows up.
-			if (widget.getId() == trackedId && current.equals(fullText))
-			{
-				return;
-			}
+			release();
 			start(widget, current);
 		}
 
-		advance(widget);
+		advance();
 	}
 
 	private void start(Widget widget, String text)
 	{
-		trackedId = widget.getId();
+		source = widget;
 		fullText = text;
 		mode = config.mode();
 		reveal = Reveal.of(text, mode);
 		startNanos = System.nanoTime();
 		shown = 0;
-		set(widget, "");
-	}
-
-	private void advance(Widget widget)
-	{
-		if (shown >= reveal.size())
+		if (reveal.size() == 0)
 		{
 			return;
+		}
+
+		copy = widget.getParent().createChild(-1, WidgetType.TEXT);
+		copy.setFontId(widget.getFontId());
+		copy.setTextColor(widget.getTextColor());
+		copy.setTextShadowed(widget.getTextShadowed());
+		copy.setXTextAlignment(widget.getXTextAlignment());
+		copy.setYTextAlignment(widget.getYTextAlignment());
+		copy.setLineHeight(widget.getLineHeight());
+		copy.setXPositionMode(widget.getXPositionMode());
+		copy.setYPositionMode(widget.getYPositionMode());
+		copy.setWidthMode(widget.getWidthMode());
+		copy.setHeightMode(widget.getHeightMode());
+		copy.setOriginalX(widget.getOriginalX());
+		copy.setOriginalY(widget.getOriginalY());
+		copy.setOriginalWidth(widget.getOriginalWidth());
+		copy.setOriginalHeight(widget.getOriginalHeight());
+		copy.setText("");
+		copy.revalidate();
+		widget.setHidden(true);
+	}
+
+	private void advance()
+	{
+		if (copy == null || shown >= reveal.size())
+		{
+			return;
+		}
+		if (!source.isHidden())
+		{
+			// The game re-showed its widget mid-line; keep it out of the way.
+			source.setHidden(true);
 		}
 
 		long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L;
@@ -139,7 +165,16 @@ public class QuothPlugin extends Plugin
 			|| shown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP
 			|| shown == 0);
 		shown = target;
-		set(widget, shown >= reveal.size() ? fullText : reveal.prefix(shown));
+		if (shown >= reveal.size())
+		{
+			// Done: hand the box back to the game's own widget, untouched.
+			source.setHidden(false);
+			copy.setHidden(true);
+		}
+		else
+		{
+			copy.setText(reveal.prefix(shown));
+		}
 		if (blip)
 		{
 			client.playSoundEffect(soundId);
@@ -199,23 +234,19 @@ public class QuothPlugin extends Plugin
 		}
 	}
 
-	private void finishNow()
+	/** Restores the game's widget and drops the copy. Safe to call at any time. */
+	private void release()
 	{
-		if (trackedId == -1 || fullText == null)
+		if (copy != null)
 		{
-			return;
+			copy.setHidden(true);
+			if (source != null)
+			{
+				source.setHidden(false);
+			}
 		}
-		Widget w = client.getWidget(trackedId);
-		if (w != null)
-		{
-			w.setText(fullText);
-		}
-		trackedId = -1;
-	}
-
-	private void set(Widget widget, String text)
-	{
-		lastSet = text;
-		widget.setText(text);
+		source = null;
+		copy = null;
+		fullText = null;
 	}
 }
