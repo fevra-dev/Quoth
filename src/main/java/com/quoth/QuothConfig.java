@@ -34,12 +34,26 @@ public interface QuothConfig extends Config
 		return RevealMode.WORD;
 	}
 
+	@Range(min = 50, max = 2000)
+	@Units(Units.MILLISECONDS)
+	@ConfigItem(
+		keyName = "fadeLength",
+		name = "Fade length",
+		description = "For Fade: how long each word takes to go from faint to full",
+		section = textSection,
+		position = 3
+	)
+	default int fadeLength()
+	{
+		return 390;
+	}
+
 	@ConfigItem(
 		keyName = "clickToFinish",
 		name = "Click to finish",
 		description = "While a line is appearing, the first click on continue (or Space) shows the rest; the next continues",
 		section = textSection,
-		position = 3
+		position = 4
 	)
 	default boolean clickToFinish()
 	{
@@ -79,7 +93,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "voice",
 		name = "Voice",
-		description = "Soft, Warm, Reed and Your samples are played by Quoth and can be pitched. Game sounds follow the in-game effects volume",
+		description = "Numbers are game sounds. Any with a matching file in .runelite/quoth (e.g. 2266.wav) play from it and take Pitch, Volume and mood; others play from the game as-is",
 		section = voiceSection,
 		position = 0
 	)
@@ -88,25 +102,13 @@ public interface QuothConfig extends Config
 		return BlipSound.BOOP;
 	}
 
-	@ConfigItem(
-		keyName = "sampleFile",
-		name = "Sample file",
-		description = "For Your samples: a file name in .runelite/quoth (WAV or AIFF). Leave blank to pick a random one each word",
-		section = voiceSection,
-		position = 1
-	)
-	default String sampleFile()
-	{
-		return "";
-	}
-
 	@Range(min = -12, max = 12)
 	@ConfigItem(
 		keyName = "pitch",
 		name = "Pitch",
-		description = "Semitones up or down. Not for game sounds",
+		description = "Semitones up or down. Applies to every voice that plays from a file",
 		section = voiceSection,
-		position = 2
+		position = 1
 	)
 	default int pitch()
 	{
@@ -118,9 +120,9 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "speakerPitch",
 		name = "Voice per speaker",
-		description = "Each NPC gets a pitch of their own from their name; goblins, dwarves and other big folk sound lower, gnomes and imps higher. Not for game sounds",
+		description = "Each NPC gets a pitch of their own from their name; goblins, dwarves and other big folk sound lower, gnomes and imps higher",
 		section = voiceSection,
-		position = 3
+		position = 2
 	)
 	default boolean speakerPitch()
 	{
@@ -132,9 +134,9 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "volume",
 		name = "Volume",
-		description = "Not for game sounds; they use the in-game effects volume",
+		description = "For voices that play from a file; plain game sounds use the in-game effects volume",
 		section = voiceSection,
-		position = 4
+		position = 3
 	)
 	default int volume()
 	{

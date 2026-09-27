@@ -90,6 +90,20 @@ final class BlipPlayer
 		return userDir;
 	}
 
+	/** Whether the folder holds a sample with this name (no extension), rescanning if it changed. */
+	boolean hasUser(String name)
+	{
+		refreshUser();
+		for (String key : user.keySet())
+		{
+			if (key.equalsIgnoreCase(name))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Rescans the samples folder if it changed and returns how many samples loaded. */
 	synchronized int refreshUser()
 	{
@@ -130,8 +144,8 @@ final class BlipPlayer
 	}
 
 	/**
-	 * @param sampleName for {@link BlipSound#USER}: a file name without extension, or blank for a
-	 *                   random sample each blip
+	 * @param sampleName a sample in the folder to play, by name without extension; null plays
+	 *                   the bundled voice, or for {@link BlipSound#USER} a random sample
 	 * @param semitones fixed pitch offset
 	 * @param variationCents random spread either side, per blip
 	 * @param volume 0-100
@@ -150,7 +164,7 @@ final class BlipPlayer
 		int fadeFrames = (int) (FORMAT.getSampleRate() * FADE_OUT_MS / 1000);
 		ex.execute(() ->
 		{
-			byte[] data = voice == BlipSound.USER ? pickUser(sampleName) : bundled.get(voice);
+			byte[] data = sampleName != null || voice == BlipSound.USER ? pickUser(sampleName) : bundled.get(voice);
 			if (data != null)
 			{
 				playNow(Resample.trim(Resample.shift(data, ratio), maxFrames, fadeFrames), volume);

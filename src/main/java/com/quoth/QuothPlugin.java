@@ -5,6 +5,7 @@ import java.awt.event.KeyEvent;
 import java.io.File;
 import java.util.Random;
 import javax.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.events.ClientTick;
@@ -28,6 +29,7 @@ import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.Text;
 
+@Slf4j
 @PluginDescriptor(
 	name = "Quoth",
 	description = "Dialogue types itself out in the chatbox, word by word, with an optional voice blip",
@@ -45,9 +47,6 @@ public class QuothPlugin extends Plugin
 	// A blip per letter sounds like a drill; one per this many letters reads as speech.
 	private static final int LETTERS_PER_BLIP = 3;
 
-	// ponytail: fade length is fixed at this many word delays so words overlap as they bloom;
-	// give it its own setting if one ratio does not suit every speed.
-	private static final int FADE_WORDS = 3;
 
 	// Fixed character for Quoth's own audio, so the settings stay few: a little random pitch
 	// keeps a voice alive, and a cap keeps every sample a short stab.
@@ -231,6 +230,7 @@ public class QuothPlugin extends Plugin
 			voicedShown = 0;
 			voicedReveal = Reveal.of(body, config.mode());
 			speakerPitch = speakerPitchFor(speakerId);
+			log.debug("Quoth: voicing Immersive line, {} steps, Immersive typing={}", voicedReveal.size(), typing);
 		}
 		if (!typing)
 		{
@@ -423,7 +423,7 @@ public class QuothPlugin extends Plugin
 
 		long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L;
 		int delay = Math.max(1, delay());
-		int fadeMs = delay * FADE_WORDS;
+		int fadeMs = Math.max(1, config.fadeLength());
 		int target = reveal.startedBy(elapsedMs, delay);
 		boolean stepped = target > shown;
 
@@ -499,7 +499,18 @@ public class QuothPlugin extends Plugin
 
 	private void playBlip(BlipSound voice, int mood)
 	{
-		if (voice.isOwnAudio())
+		String sample = null;
+		if (!voice.isOwnAudio())
+		{
+			int id = voice == BlipSound.CUSTOM ? config.soundId() : voice.getId();
+			if (!player.hasUser(String.valueOf(id)))
+			{
+				// No stab file for this ID: the game plays it, unpitched, at the game's volume.
+				client.playSoundEffect(id);
+				return;
+			}
+			sample = String.valueOf(id);
+		}
 		{
 			int pitch = config.pitch() + (config.speakerPitch() ? speakerPitch : 0);
 			int volume = config.volume();
@@ -511,11 +522,7 @@ public class QuothPlugin extends Plugin
 			{
 				volume = (int) Math.min(100, Math.round(volume * EXCLAIM_GAIN));
 			}
-			player.play(voice, config.sampleFile(), pitch, VARIATION_CENTS, volume, STAB_MS);
-		}
-		else
-		{
-			client.playSoundEffect(voice == BlipSound.CUSTOM ? config.soundId() : voice.getId());
+			player.play(voice, sample, pitch, VARIATION_CENTS, volume, STAB_MS);
 		}
 	}
 
@@ -541,7 +548,7 @@ public class QuothPlugin extends Plugin
 
 		BlipSound voice = config.voice();
 		int id = config.soundId();
-		if (("voice".equals(event.getKey()) && voice == BlipSound.USER) || "sampleFile".equals(event.getKey()))
+		if ("voice".equals(event.getKey()) && voice == BlipSound.USER)
 		{
 			reportSamples();
 		}

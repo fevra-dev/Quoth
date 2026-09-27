@@ -69,4 +69,14 @@ public class SampleFolderTest
 	{
 		assertEquals(0, new BlipPlayer(new File(tmp.getRoot(), "absent")).refreshUser());
 	}
+
+	@Test
+	public void soundIdsFindTheirStabFileCaseInsensitively() throws Exception
+	{
+		File dir = tmp.newFolder("ids");
+		writeWav(new File(dir, "2266.WAV"), 22050f, 16, 1, 441);
+		BlipPlayer p = new BlipPlayer(dir);
+		org.junit.Assert.assertTrue(p.hasUser("2266"));
+		org.junit.Assert.assertFalse(p.hasUser("9999"));
+	}
 }
