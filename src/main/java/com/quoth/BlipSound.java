@@ -15,9 +15,10 @@ public enum BlipSound
 	SOUND_2269("Game: 2269", null, 2269),
 	SOUND_2276("Game: 2276", null, 2276),
 	SOUND_2278("Game: 2278", null, 2278),
+	SOUND_11427("Game: 11427", null, 11427),
 	CUSTOM("Game: Custom ID", null, -1);
 
-	private static final BlipSound[] GAME_PRESETS = {BOOP, SOUND_2269, SOUND_2276, SOUND_2278};
+	private static final BlipSound[] GAME_PRESETS = {BOOP, SOUND_2269, SOUND_2276, SOUND_2278, SOUND_11427};
 
 	private final String label;
 	/** Bundled sample name, or null for game sounds. */

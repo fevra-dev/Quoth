@@ -21,6 +21,7 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.util.HotkeyListener;
+import net.runelite.client.util.Text;
 
 @PluginDescriptor(
 	name = "Quoth",
@@ -40,6 +41,8 @@ public class QuothPlugin extends Plugin
 	private static final int LETTERS_PER_BLIP = 3;
 
 	private static final String IMMERSIVE_DIALOGUE = "ImmersiveDialoguePlugin";
+	private static final String IMMERSIVE_GROUP = "immersivedialogue";
+	private static final int IMMERSIVE_DEFAULT_SPEED = 35;
 
 	// Size of the game's synth list: symbols/synth.sym in Joshua-F/osrs-dumps, 2026-09-27.
 	private static final int SYNTH_COUNT = 12155;
@@ -68,6 +71,9 @@ public class QuothPlugin extends Plugin
 	private final Random random = new Random();
 	private final BlipPlayer player = new BlipPlayer();
 	private boolean immersiveActive;
+	private String voicedLine;
+	private long voicedStart;
+	private int voicedChars;
 
 	private final HotkeyListener rollListener = new HotkeyListener(() -> config.rollKey())
 	{
@@ -133,6 +139,79 @@ public class QuothPlugin extends Plugin
 		return false;
 	}
 
+	/**
+	 * With Immersive Dialogue drawing the text, Quoth only lends its voice: it runs blips on
+	 * Immersive's own clock (Text speed, characters per second) and never touches its panel.
+	 * Immersive only types while its Voice blips setting is on; set its Voice volume to 0 so
+	 * one voice speaks, not two.
+	 * ponytail: clicking to skip a line in Immersive is invisible here, so blips run to the
+	 * end of that line; mirror its skip if that ever grates.
+	 */
+	private void voiceImmersive()
+	{
+		Boolean typing = configManager.getConfiguration(IMMERSIVE_GROUP, "voiceBlips", Boolean.class);
+		String body = null;
+		if (Boolean.TRUE.equals(typing))
+		{
+			for (int id : DIALOGUE_TEXT)
+			{
+				Widget w = client.getWidget(id);
+				// Immersive hides the native widgets but leaves their text intact.
+				if (w != null && w.getText() != null && !w.getText().isEmpty())
+				{
+					body = Text.removeTags(w.getText().replace("<br>", " "));
+					break;
+				}
+			}
+		}
+		if (body == null)
+		{
+			voicedLine = null;
+			return;
+		}
+		if (!body.equals(voicedLine))
+		{
+			voicedLine = body;
+			voicedStart = System.nanoTime();
+			voicedChars = 0;
+		}
+
+		Integer speed = configManager.getConfiguration(IMMERSIVE_GROUP, "textSpeed", Integer.class);
+		double cps = speed != null && speed > 0 ? speed : IMMERSIVE_DEFAULT_SPEED;
+		long elapsedMs = (System.nanoTime() - voicedStart) / 1_000_000L;
+		int target = (int) Math.min(body.length(), elapsedMs * cps / 1000.0);
+		boolean blip = false;
+		for (int i = voicedChars; i < target; i++)
+		{
+			char c = body.charAt(i);
+			if (Character.isWhitespace(c))
+			{
+				continue;
+			}
+			boolean wordStart = i == 0 || Character.isWhitespace(body.charAt(i - 1));
+			blip |= config.mode() == RevealMode.WORD ? wordStart : nonSpaceIndex(body, i) % LETTERS_PER_BLIP == 0;
+		}
+		voicedChars = target;
+		BlipSound voice = config.voice();
+		if (blip && voice != BlipSound.OFF)
+		{
+			playBlip(voice);
+		}
+	}
+
+	private static int nonSpaceIndex(String s, int i)
+	{
+		int n = 0;
+		for (int k = 0; k < i; k++)
+		{
+			if (!Character.isWhitespace(s.charAt(k)))
+			{
+				n++;
+			}
+		}
+		return n;
+	}
+
 	private void roll()
 	{
 		int id = random.nextInt(SYNTH_COUNT);
@@ -151,6 +230,7 @@ public class QuothPlugin extends Plugin
 		if (immersiveActive)
 		{
 			release();
+			voiceImmersive();
 			return;
 		}
 
