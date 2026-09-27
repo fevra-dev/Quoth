@@ -1,6 +1,7 @@
 package com.quoth;
 
 import com.google.inject.Provides;
+import java.util.Random;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.events.ClientTick;
@@ -9,6 +10,7 @@ import net.runelite.api.widgets.Widget;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
@@ -38,10 +40,16 @@ public class QuothPlugin extends Plugin
 	@Inject
 	private QuothConfig config;
 
+	@Inject
+	private ConfigManager configManager;
+
+	private final Random random = new Random();
+
 	private int trackedId = -1;
 	private String fullText;
 	private String lastSet;
 	private Reveal reveal;
+	private RevealMode mode;
 	private long startNanos;
 	private int shown;
 
@@ -105,7 +113,8 @@ public class QuothPlugin extends Plugin
 	{
 		trackedId = widget.getId();
 		fullText = text;
-		reveal = Reveal.of(text, config.mode());
+		mode = config.mode();
+		reveal = Reveal.of(text, mode);
 		startNanos = System.nanoTime();
 		shown = 0;
 		set(widget, "");
@@ -119,14 +128,14 @@ public class QuothPlugin extends Plugin
 		}
 
 		long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L;
-		int target = (int) Math.min(reveal.size(), 1 + elapsedMs / Math.max(1, config.delay()));
+		int target = (int) Math.min(reveal.size(), 1 + elapsedMs / Math.max(1, delay()));
 		if (target <= shown)
 		{
 			return;
 		}
 
 		int soundId = soundId();
-		boolean blip = soundId >= 0 && (config.mode() == RevealMode.WORD
+		boolean blip = soundId >= 0 && (mode == RevealMode.WORD
 			|| shown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP
 			|| shown == 0);
 		shown = target;
@@ -137,10 +146,57 @@ public class QuothPlugin extends Plugin
 		}
 	}
 
+	private int delay()
+	{
+		return mode == RevealMode.WORD ? config.wordDelay() : config.letterDelay();
+	}
+
 	private int soundId()
 	{
+		switch (config.blip())
+		{
+			case CUSTOM:
+				return config.soundId();
+			case RANDOM:
+				return BlipSound.randomPresetId(random);
+			default:
+				return config.blip().getId();
+		}
+	}
+
+	/**
+	 * Keeps the dropdown and the ID field telling the same story: picking a preset writes its
+	 * ID into the field, and typing an ID selects the matching preset, or Custom if none.
+	 * Each write is skipped when the other side already agrees, so neither echo loops.
+	 * ponytail: RuneLite's settings panel only redraws when reopened, so the field shows the
+	 * synced value after closing and reopening Quoth's settings.
+	 */
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (!QuothConfig.GROUP.equals(event.getGroup()))
+		{
+			return;
+		}
+
 		BlipSound blip = config.blip();
-		return blip == BlipSound.CUSTOM ? config.soundId() : blip.getId();
+		int id = config.soundId();
+		if ("blip".equals(event.getKey()))
+		{
+			if (blip.isPreset() && id != blip.getId())
+			{
+				configManager.setConfiguration(QuothConfig.GROUP, "soundId", blip.getId());
+			}
+		}
+		else if ("soundId".equals(event.getKey()))
+		{
+			if (blip == BlipSound.CUSTOM || (blip.isPreset() && id == blip.getId()))
+			{
+				return;
+			}
+			BlipSound match = BlipSound.presetFor(id);
+			configManager.setConfiguration(QuothConfig.GROUP, "blip", match != null ? match : BlipSound.CUSTOM);
+		}
 	}
 
 	private void finishNow()
