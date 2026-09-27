@@ -125,15 +125,22 @@ public class QuothPlugin extends Plugin
 			return;
 		}
 
-		boolean blip = config.sound() && (config.mode() == RevealMode.WORD
+		int soundId = soundId();
+		boolean blip = soundId >= 0 && (config.mode() == RevealMode.WORD
 			|| shown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP
 			|| shown == 0);
 		shown = target;
 		set(widget, shown >= reveal.size() ? fullText : reveal.prefix(shown));
 		if (blip)
 		{
-			client.playSoundEffect(config.soundId());
+			client.playSoundEffect(soundId);
 		}
+	}
+
+	private int soundId()
+	{
+		BlipSound blip = config.blip();
+		return blip == BlipSound.CUSTOM ? config.soundId() : blip.getId();
 	}
 
 	private void finishNow()

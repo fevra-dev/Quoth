@@ -37,20 +37,20 @@ public interface QuothConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "sound",
+		keyName = "blip",
 		name = "Voice blip",
-		description = "Play a soft sound as text appears. Follows the game's sound effect volume",
+		description = "Sound played as text appears. Follows the game's sound effect volume",
 		position = 2
 	)
-	default boolean sound()
+	default BlipSound blip()
 	{
-		return true;
+		return BlipSound.BOOP;
 	}
 
 	@ConfigItem(
 		keyName = "soundId",
-		name = "Blip sound ID",
-		description = "Game sound effect played for each blip",
+		name = "Custom sound ID",
+		description = "Game sound effect ID used when Voice blip is set to Custom",
 		position = 3
 	)
 	default int soundId()
