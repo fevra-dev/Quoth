@@ -1,6 +1,7 @@
 package com.quoth;
 
 import com.google.inject.Provides;
+import java.io.File;
 import java.util.Random;
 import javax.inject.Inject;
 import net.runelite.api.ChatMessageType;
@@ -9,6 +10,7 @@ import net.runelite.api.events.ClientTick;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetType;
+import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
@@ -73,7 +75,7 @@ public class QuothPlugin extends Plugin
 	private ChatMessageManager chatMessageManager;
 
 	private final Random random = new Random();
-	private final BlipPlayer player = new BlipPlayer();
+	private final BlipPlayer player = new BlipPlayer(new File(RuneLite.RUNELITE_DIR, "quoth"));
 	private boolean immersiveActive;
 	private String voicedLine;
 	private long voicedStart;
@@ -215,6 +217,20 @@ public class QuothPlugin extends Plugin
 			}
 		}
 		return n;
+	}
+
+	/** Tells the player where the folder is and what loaded, since the settings panel cannot. */
+	private void reportSamples()
+	{
+		int count = player.refreshUser();
+		String where = player.userDir().getAbsolutePath();
+		String msg = count == 0
+			? "Quoth: no samples yet. Put WAV or AIFF files in " + where
+			: "Quoth: " + count + " sample" + (count == 1 ? "" : "s") + " in " + where;
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.GAMEMESSAGE)
+			.runeLiteFormattedMessage(msg)
+			.build());
 	}
 
 	private void roll()
@@ -359,9 +375,9 @@ public class QuothPlugin extends Plugin
 
 	private void playBlip(BlipSound voice)
 	{
-		if (voice.isBundled())
+		if (voice.isOwnAudio())
 		{
-			player.play(voice, config.pitch(), config.pitchVariation(), config.volume(), config.length());
+			player.play(voice, config.sampleFile(), config.pitch(), config.pitchVariation(), config.volume(), config.length());
 		}
 		else
 		{
@@ -391,6 +407,10 @@ public class QuothPlugin extends Plugin
 
 		BlipSound voice = config.voice();
 		int id = config.soundId();
+		if (("voice".equals(event.getKey()) && voice == BlipSound.USER) || "sampleFile".equals(event.getKey()))
+		{
+			reportSamples();
+		}
 		if ("voice".equals(event.getKey()))
 		{
 			if (voice.isGamePreset() && id != voice.getId())

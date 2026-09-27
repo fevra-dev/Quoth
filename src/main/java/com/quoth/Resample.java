@@ -59,6 +59,29 @@ final class Resample
 		return out;
 	}
 
+	/** Averages interleaved 16-bit little-endian channels down to mono. Mono passes through. */
+	static byte[] downmix(byte[] pcm, int channels)
+	{
+		if (channels <= 1)
+		{
+			return pcm;
+		}
+		int frames = pcm.length / (2 * channels);
+		byte[] out = new byte[frames * 2];
+		for (int f = 0; f < frames; f++)
+		{
+			int sum = 0;
+			for (int c = 0; c < channels; c++)
+			{
+				sum += sample(pcm, f * channels + c);
+			}
+			int s = Math.round(sum / (float) channels);
+			out[2 * f] = (byte) s;
+			out[2 * f + 1] = (byte) (s >> 8);
+		}
+		return out;
+	}
+
 	private static int sample(byte[] pcm, int frame)
 	{
 		return (short) ((pcm[2 * frame] & 0xff) | (pcm[2 * frame + 1] << 8));

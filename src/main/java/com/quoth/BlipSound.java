@@ -11,6 +11,7 @@ public enum BlipSound
 	SOFT("Soft", "soft", -1),
 	WARM("Warm", "warm", -1),
 	REED("Reed", "reed", -1),
+	USER("Your samples", null, -1),
 	// Game sounds, ascending. Picked by ear; the game names none of them.
 	SOUND_842("Game: 842", null, 842),
 	SOUND_1229("Game: 1229", null, 1229),
@@ -48,6 +49,12 @@ public enum BlipSound
 	boolean isBundled()
 	{
 		return sample != null;
+	}
+
+	/** Played by Quoth itself, so Pitch, Length and Volume apply. */
+	boolean isOwnAudio()
+	{
+		return isBundled() || this == USER;
 	}
 
 	boolean isGamePreset()

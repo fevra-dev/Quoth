@@ -67,7 +67,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "voice",
 		name = "Voice",
-		description = "Soft, Warm and Reed are Quoth's own and can be pitched. Game sounds follow the in-game effects volume",
+		description = "Soft, Warm, Reed and Your samples are played by Quoth and can be pitched and shortened. Game sounds follow the in-game effects volume",
 		section = voiceSection,
 		position = 0
 	)
@@ -76,13 +76,25 @@ public interface QuothConfig extends Config
 		return BlipSound.BOOP;
 	}
 
+	@ConfigItem(
+		keyName = "sampleFile",
+		name = "Sample file",
+		description = "For Your samples: a file name in .runelite/quoth (WAV or AIFF). Leave blank to pick a random one each word",
+		section = voiceSection,
+		position = 1
+	)
+	default String sampleFile()
+	{
+		return "";
+	}
+
 	@Range(min = -12, max = 12)
 	@ConfigItem(
 		keyName = "pitch",
 		name = "Pitch",
-		description = "Semitones up or down. Soft, Warm and Reed only",
+		description = "Semitones up or down. Not for game sounds",
 		section = voiceSection,
-		position = 1
+		position = 2
 	)
 	default int pitch()
 	{
@@ -93,9 +105,9 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "pitchVariation",
 		name = "Pitch variation",
-		description = "Random spread in cents per word, so the voice sounds alive. 100 cents is a semitone. Soft, Warm and Reed only",
+		description = "Random spread in cents per word, so the voice sounds alive. 100 cents is a semitone. Not for game sounds",
 		section = voiceSection,
-		position = 2
+		position = 3
 	)
 	default int pitchVariation()
 	{
@@ -107,9 +119,9 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "length",
 		name = "Length",
-		description = "Cut each blip to this long, for a shorter stab. Soft, Warm and Reed only; game sounds cannot be shortened",
+		description = "Cut each blip to this long, for a shorter stab. Game sounds cannot be shortened",
 		section = voiceSection,
-		position = 3
+		position = 4
 	)
 	default int length()
 	{
@@ -121,9 +133,9 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "volume",
 		name = "Volume",
-		description = "Soft, Warm and Reed only; game sounds use the in-game effects volume",
+		description = "Not for game sounds; they use the in-game effects volume",
 		section = voiceSection,
-		position = 4
+		position = 5
 	)
 	default int volume()
 	{
