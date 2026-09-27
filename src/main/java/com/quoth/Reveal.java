@@ -48,7 +48,7 @@ final class Reveal
 				{
 					end++;
 				}
-				if (mode == RevealMode.WORD)
+				if (mode != RevealMode.LETTER)
 				{
 					steps.add(pending + text.substring(i, end));
 					pending.setLength(0);
@@ -82,6 +82,36 @@ final class Reveal
 	int size()
 	{
 		return steps.size();
+	}
+
+	/**
+	 * The full text with each step's opacity set by how long ago it started fading in. Steps that
+	 * have not started are fully transparent, so the layout is the final layout from the first frame.
+	 * Uses the game font's {@code <trans=N>} tag (0 opaque, 255 invisible).
+	 */
+	String fade(long elapsedMs, int delayMs, int fadeMs)
+	{
+		StringBuilder sb = new StringBuilder();
+		for (int k = 0; k < steps.size(); k++)
+		{
+			double a = (elapsedMs - (double) k * delayMs) / Math.max(1, fadeMs);
+			int trans = (int) Math.round(255 * (1 - Math.max(0, Math.min(1, a))));
+			if (trans == 0)
+			{
+				sb.append(steps.get(k));
+			}
+			else
+			{
+				sb.append("<trans=").append(trans).append('>').append(steps.get(k)).append("</trans>");
+			}
+		}
+		return sb.toString();
+	}
+
+	/** Milliseconds until the last step is fully opaque. */
+	long fadeDuration(int delayMs, int fadeMs)
+	{
+		return steps.isEmpty() ? 0 : (long) (steps.size() - 1) * delayMs + fadeMs;
 	}
 
 	/** Text with the first {@code count} steps shown; {@code count >= size()} is the full text. */

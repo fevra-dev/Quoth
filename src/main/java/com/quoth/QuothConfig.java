@@ -25,7 +25,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "mode",
 		name = "Reveal by",
-		description = "Show dialogue one word or one letter at a time",
+		description = "Word or letter at a time, or Fade: each word fades in over the ones before it",
 		section = textSection,
 		position = 0
 	)

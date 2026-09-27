@@ -40,6 +40,10 @@ public class QuothPlugin extends Plugin
 	// A blip per letter sounds like a drill; one per this many letters reads as speech.
 	private static final int LETTERS_PER_BLIP = 3;
 
+	// ponytail: fade length is fixed at this many word delays so words overlap as they bloom;
+	// give it its own setting if one ratio does not suit every speed.
+	private static final int FADE_WORDS = 3;
+
 	private static final String IMMERSIVE_DIALOGUE = "ImmersiveDialoguePlugin";
 	private static final String IMMERSIVE_GROUP = "immersivedialogue";
 	private static final int IMMERSIVE_DEFAULT_SPEED = 35;
@@ -94,6 +98,7 @@ public class QuothPlugin extends Plugin
 	private RevealMode mode;
 	private long startNanos;
 	private int shown;
+	private boolean done;
 
 	@Provides
 	QuothConfig provideConfig(ConfigManager configManager)
@@ -189,7 +194,7 @@ public class QuothPlugin extends Plugin
 				continue;
 			}
 			boolean wordStart = i == 0 || Character.isWhitespace(body.charAt(i - 1));
-			blip |= config.mode() == RevealMode.WORD ? wordStart : nonSpaceIndex(body, i) % LETTERS_PER_BLIP == 0;
+			blip |= config.mode() != RevealMode.LETTER ? wordStart : nonSpaceIndex(body, i) % LETTERS_PER_BLIP == 0;
 		}
 		voicedChars = target;
 		BlipSound voice = config.voice();
@@ -278,6 +283,7 @@ public class QuothPlugin extends Plugin
 		reveal = Reveal.of(text, mode);
 		startNanos = System.nanoTime();
 		shown = 0;
+		done = false;
 		if (reveal.size() == 0)
 		{
 			return;
@@ -305,7 +311,7 @@ public class QuothPlugin extends Plugin
 
 	private void advance()
 	{
-		if (copy == null || shown >= reveal.size())
+		if (copy == null || done)
 		{
 			return;
 		}
@@ -316,24 +322,32 @@ public class QuothPlugin extends Plugin
 		}
 
 		long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L;
-		int target = (int) Math.min(reveal.size(), 1 + elapsedMs / Math.max(1, delay()));
-		if (target <= shown)
-		{
-			return;
-		}
+		int delay = Math.max(1, delay());
+		int fadeMs = delay * FADE_WORDS;
+		int target = (int) Math.min(reveal.size(), 1 + elapsedMs / delay);
+		boolean stepped = target > shown;
 
 		BlipSound voice = config.voice();
-		boolean blip = voice != BlipSound.OFF && (mode == RevealMode.WORD
+		boolean blip = stepped && voice != BlipSound.OFF && (mode != RevealMode.LETTER
 			|| shown / LETTERS_PER_BLIP != target / LETTERS_PER_BLIP
 			|| shown == 0);
-		shown = target;
-		if (shown >= reveal.size())
+		shown = Math.max(shown, target);
+
+		boolean finished = mode == RevealMode.FADE
+			? elapsedMs >= reveal.fadeDuration(delay, fadeMs)
+			: shown >= reveal.size();
+		if (finished)
 		{
 			// Done: hand the box back to the game's own widget, untouched.
+			done = true;
 			source.setHidden(false);
 			copy.setHidden(true);
 		}
-		else
+		else if (mode == RevealMode.FADE)
+		{
+			copy.setText(reveal.fade(elapsedMs, delay, fadeMs));
+		}
+		else if (stepped)
 		{
 			copy.setText(reveal.prefix(shown));
 		}
@@ -357,7 +371,7 @@ public class QuothPlugin extends Plugin
 
 	private int delay()
 	{
-		return mode == RevealMode.WORD ? config.wordDelay() : config.letterDelay();
+		return mode == RevealMode.LETTER ? config.letterDelay() : config.wordDelay();
 	}
 
 	/**
