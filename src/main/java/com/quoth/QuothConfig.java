@@ -102,6 +102,20 @@ public interface QuothConfig extends Config
 		return 40;
 	}
 
+	@Range(min = 10, max = 250)
+	@Units(Units.MILLISECONDS)
+	@ConfigItem(
+		keyName = "length",
+		name = "Length",
+		description = "Cut each blip to this long, for a shorter stab. Soft, Warm and Reed only; game sounds cannot be shortened",
+		section = voiceSection,
+		position = 3
+	)
+	default int length()
+	{
+		return 250;
+	}
+
 	@Range(min = 0, max = 100)
 	@Units(Units.PERCENT)
 	@ConfigItem(
@@ -109,7 +123,7 @@ public interface QuothConfig extends Config
 		name = "Volume",
 		description = "Soft, Warm and Reed only; game sounds use the in-game effects volume",
 		section = voiceSection,
-		position = 3
+		position = 4
 	)
 	default int volume()
 	{

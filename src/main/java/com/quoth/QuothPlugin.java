@@ -361,7 +361,7 @@ public class QuothPlugin extends Plugin
 	{
 		if (voice.isBundled())
 		{
-			player.play(voice, config.pitch(), config.pitchVariation(), config.volume());
+			player.play(voice, config.pitch(), config.pitchVariation(), config.volume(), config.length());
 		}
 		else
 		{

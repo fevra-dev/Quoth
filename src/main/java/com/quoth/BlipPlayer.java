@@ -22,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 final class BlipPlayer
 {
+	private static final int FADE_OUT_MS = 5;
+
 	private final Map<BlipSound, byte[]> pcm = new EnumMap<>(BlipSound.class);
 	private final Random random = new Random();
 	private AudioFormat format;
@@ -67,8 +69,9 @@ final class BlipPlayer
 	 * @param semitones fixed pitch offset
 	 * @param variationCents random spread either side, per blip
 	 * @param volume 0-100
+	 * @param lengthMs cut each blip to this long after pitching; 0 plays it whole
 	 */
-	void play(BlipSound voice, int semitones, int variationCents, int volume)
+	void play(BlipSound voice, int semitones, int variationCents, int volume, int lengthMs)
 	{
 		byte[] data = pcm.get(voice);
 		ExecutorService ex = executor;
@@ -78,7 +81,9 @@ final class BlipPlayer
 		}
 		double cents = variationCents <= 0 ? 0 : (random.nextDouble() * 2 - 1) * variationCents;
 		double ratio = Resample.ratio(semitones, cents);
-		ex.execute(() -> playNow(Resample.shift(data, ratio), volume));
+		int maxFrames = lengthMs <= 0 ? 0 : (int) (format.getSampleRate() * lengthMs / 1000);
+		int fadeFrames = (int) (format.getSampleRate() * FADE_OUT_MS / 1000);
+		ex.execute(() -> playNow(Resample.trim(Resample.shift(data, ratio), maxFrames, fadeFrames), volume));
 	}
 
 	private void playNow(byte[] data, int volume)

@@ -51,4 +51,23 @@ public class ResampleTest
 		byte[] out = Resample.shift(pcm, 1.0);
 		assertEquals(-5000, (short) ((out[0] & 0xff) | (out[1] << 8)));
 	}
+
+	@Test
+	public void trimCutsToLengthAndEndsInSilence()
+	{
+		byte[] pcm = ramp(100);
+		byte[] cut = Resample.trim(pcm, 40, 10);
+		assertEquals(80, cut.length);
+		assertEquals(0, (short) ((cut[78] & 0xff) | (cut[79] << 8)));
+		assertEquals(pcm[0], cut[0]);
+		assertEquals(pcm[59], cut[59]); // untouched before the fade
+	}
+
+	@Test
+	public void trimLeavesShortOrUnboundedInputAlone()
+	{
+		byte[] pcm = ramp(30);
+		assertArrayEquals(pcm, Resample.trim(pcm, 40, 10));
+		assertArrayEquals(pcm, Resample.trim(pcm, 0, 10));
+	}
 }

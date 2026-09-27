@@ -35,6 +35,30 @@ final class Resample
 		return out;
 	}
 
+	/**
+	 * Cuts 16-bit mono PCM to at most {@code maxFrames}, ramping the last {@code fadeFrames}
+	 * down to silence so the cut does not click. Shorter input is returned unchanged.
+	 */
+	static byte[] trim(byte[] pcm, int maxFrames, int fadeFrames)
+	{
+		int frames = pcm.length / 2;
+		if (maxFrames <= 0 || maxFrames >= frames)
+		{
+			return pcm;
+		}
+		byte[] out = java.util.Arrays.copyOf(pcm, maxFrames * 2);
+		int fade = Math.min(fadeFrames, maxFrames);
+		for (int i = 0; i < fade; i++)
+		{
+			int frame = maxFrames - fade + i;
+			double gain = 1 - (i + 1) / (double) fade;
+			int s = (int) Math.round(sample(out, frame) * gain);
+			out[2 * frame] = (byte) s;
+			out[2 * frame + 1] = (byte) (s >> 8);
+		}
+		return out;
+	}
+
 	private static int sample(byte[] pcm, int frame)
 	{
 		return (short) ((pcm[2 * frame] & 0xff) | (pcm[2 * frame + 1] << 8));
