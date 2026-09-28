@@ -2,7 +2,7 @@
 
 Dialogue that speaks, like the old RPGs.
 
-![Talking to the Cook with Quoth](docs/cook.gif)
+![Talking to Hans in Lumbridge with Quoth](docs/demo.gif)
 
 NPC dialogue types itself out in the chatbox one word at a time, with a soft voice blip for each
 word. Lines breathe at commas and stop at full stops. Every NPC has a voice of their own: the Cook

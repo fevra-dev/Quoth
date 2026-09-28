@@ -101,30 +101,116 @@ CONCEPTS = {
 }
 
 
-def main():
-    OUT.mkdir(parents=True, exist_ok=True)
+def filled_bubble(d, box, color):
+    x0, y0, x1, y1 = box
+    d.rounded_rectangle(s(x0, y0, x1, y1), radius=7 * SS, fill=color)
+    d.polygon(s(x0 + 8, y1 - 1, x0 + 14, y1 - 1, x0 + 7, y1 + 7), fill=color)
+
+
+def ell_filled(d):
+    filled_bubble(d, (8, 20, 40, 44), INK)
+    for x, c in ((16, TILE), (24, TILE), (32, AMBER)):
+        d.ellipse(s(x - 2.5, 30, x + 2.5, 35), fill=c)
+
+
+def ell_growing(d):
+    d.ellipse(s(8, 18, 40, 46), outline=INK, width=3 * SS)
+    d.polygon(s(13, 40, 19, 44, 10, 52), fill=INK)
+    for x, r in ((17, 1.6), (24, 2.3), (31, 3.0)):
+        d.ellipse(s(x - r, 32 - r, x + r, 32 + r), fill=AMBER if r > 2.5 else INK)
+
+
+def ell_typing(d):
+    bubble(d, (8, 20, 40, 44))
+    d.ellipse(s(13.5, 30, 18.5, 35), fill=INK)
+    d.ellipse(s(21.5, 30, 26.5, 35), fill=INK)
+    d.ellipse(s(30.5, 31, 33.5, 34), fill=AMBER)
+
+
+def wave_filled(d):
+    filled_bubble(d, (8, 20, 40, 44), AMBER)
+    for x, h in ((15, 4), (20, 9), (25, 6), (30, 11), (35, 4)):
+        d.rounded_rectangle(s(x - 1.2, 32 - h / 2, x + 1.2, 32 + h / 2), radius=SS, fill=TILE)
+
+
+def wave_sine(d):
+    import math
+    bubble(d, (8, 20, 40, 44))
+    pts = [(12 + i * 0.5, 32 + 5 * math.sin(i * 0.5) * math.sin(i * 0.5 * 0.2)) for i in range(0, 49)]
+    d.line([(x * SS, y * SS) for x, y in pts], fill=AMBER, width=2 * SS, joint="curve")
+
+
+def wave_pair(d):
+    d.rounded_rectangle(s(16, 14, 42, 32), radius=6 * SS, outline=INK, width=2 * SS)
+    filled_bubble(d, (6, 28, 34, 50), INK)
+    for x, h in ((13, 4), (18, 8), (23, 5), (28, 9)):
+        d.rounded_rectangle(s(x - 1.1, 39 - h / 2, x + 1.1, 39 + h / 2), radius=SS, fill=AMBER if x == 23 else TILE)
+
+
+def q_dots(d):
+    # A Q whose tail is a speech-bubble tail, pointing down and left, so it never reads as a lens.
+    d.ellipse(s(8, 18, 40, 46), outline=INK, width=4 * SS)
+    d.polygon(s(14, 40, 22, 45, 10, 54), fill=INK)
+    for x, c in ((17, INK), (24, INK), (31, AMBER)):
+        d.ellipse(s(x - 2.2, 30, x + 2.2, 34.4), fill=c)
+
+
+def q_filled(d):
+    d.ellipse(s(8, 18, 40, 46), fill=INK)
+    d.polygon(s(14, 40, 22, 45, 10, 54), fill=AMBER)
+    d.ellipse(s(17, 27, 31, 37), fill=TILE)
+
+
+def q_wave(d):
+    d.ellipse(s(8, 18, 40, 46), outline=INK, width=4 * SS)
+    d.polygon(s(14, 40, 22, 45, 10, 54), fill=INK)
+    for x, h in ((17, 4), (21, 8), (25, 5), (29, 9)):
+        d.rounded_rectangle(s(x - 1, 32 - h / 2, x + 1, 32 + h / 2), radius=SS, fill=AMBER if x == 25 else INK)
+
+
+VARIANTS = {
+    "ellipsis-filled": ell_filled,
+    "ellipsis-growing": ell_growing,
+    "ellipsis-typing": ell_typing,
+    "wave-filled": wave_filled,
+    "wave-sine": wave_sine,
+    "wave-pair": wave_pair,
+    "q-dots": q_dots,
+    "q-filled": q_filled,
+    "q-wave": q_wave,
+}
+
+
+def render(concepts, sheet_name, cols):
     icons = []
-    for name, draw in CONCEPTS.items():
+    for name, draw in concepts.items():
         im, d = canvas()
         draw(d)
         small = im.resize((W, H), Image.LANCZOS)
         small.save(OUT / f"{name}.png")
         icons.append((name, small))
-    # Sheet: each icon at 1x and 3x on RuneLite's dark panel, plus 1x on light.
     cell_w, cell_h, pad = W * 3 + W + 40, H * 3 + 34, 12
-    sheet = Image.new("RGB", (cell_w * 4 + pad, cell_h * 2 + pad), (30, 30, 30))
+    rows = (len(icons) + cols - 1) // cols
+    sheet = Image.new("RGB", (cell_w * cols + pad, cell_h * rows + pad), (30, 30, 30))
     d = ImageDraw.Draw(sheet)
     label = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 13)
     for i, (name, im) in enumerate(icons):
-        x, y = pad + (i % 4) * cell_w, pad + (i // 4) * cell_h
-        sheet.paste(im.resize((W * 3, H * 3), Image.NEAREST), (x, y), im.resize((W * 3, H * 3), Image.NEAREST))
+        x, y = pad + (i % cols) * cell_w, pad + (i // cols) * cell_h
+        big = im.resize((W * 3, H * 3), Image.NEAREST)
+        sheet.paste(big, (x, y), big)
         sheet.paste(im, (x + W * 3 + 10, y), im)
         light = Image.new("RGB", (W + 8, H + 8), (240, 240, 240))
         light.paste(im, (4, 4), im)
         sheet.paste(light, (x + W * 3 + 6, y + H + 14))
         d.text((x, y + H * 3 + 8), f"{i + 1}. {name}", font=label, fill=(220, 220, 220))
-    sheet.save(OUT / "sheet.png")
-    print("wrote", len(icons), "icons and sheet to", OUT)
+    sheet.save(OUT / sheet_name)
+    return len(icons)
+
+
+def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    n = render(CONCEPTS, "sheet.png", 4) + render(VARIANTS, "sheet-variants.png", 3)
+    print("wrote", n, "icons to", OUT)
 
 
 if __name__ == "__main__":
