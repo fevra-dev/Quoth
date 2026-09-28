@@ -1,8 +1,9 @@
 package com.quoth;
 
-import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -11,39 +12,36 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.Clip;
-import javax.sound.sampled.FloatControl;
-import javax.sound.sampled.LineEvent;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.client.audio.AudioPlayer;
 
 /**
- * Plays Quoth's own voices and the player's samples through Java Sound, off the client thread.
- * Unlike game sounds these can be pitched and shortened, but they do not follow the in-game
- * sound effect volume, hence their own. Everything is decoded once to 44.1 kHz 16-bit mono.
+ * Plays Quoth's own voices, and any sound files the player has added, through RuneLite's
+ * AudioPlayer, off the client thread. Each blip is decoded once, then pitched and trimmed in
+ * memory and handed over as a small WAV. Unlike game sounds these can be pitched and shortened,
+ * but they do not follow the in-game sound effect volume, hence their own.
  */
 @Slf4j
 final class BlipPlayer
 {
-	static final AudioFormat FORMAT = new AudioFormat(44100f, 16, 1, true, false);
 	private static final int FADE_OUT_MS = 5;
 	// A voice blip is a fraction of a second; anything longer is cut on load so a stray song in
-	// the folder cannot eat memory. Length trims further per blip.
+	// the folder cannot eat memory. Blips are trimmed further as they play.
 	private static final int MAX_SAMPLE_MS = 2000;
 	private static final long MAX_FILE_BYTES = 20L * 1024 * 1024;
 
 	private final Map<BlipSound, byte[]> bundled = new EnumMap<>(BlipSound.class);
 	private final Random random = new Random();
 	private final File userDir;
+	private final AudioPlayer audio;
 	private volatile Map<String, byte[]> user = new LinkedHashMap<>();
 	private long userDirStamp = Long.MIN_VALUE;
 	private ExecutorService executor;
 
-	BlipPlayer(File userDir)
+	BlipPlayer(File userDir, AudioPlayer audio)
 	{
 		this.userDir = userDir;
+		this.audio = audio;
 	}
 
 	void start()
@@ -54,10 +52,9 @@ final class BlipPlayer
 			{
 				continue;
 			}
-			try (InputStream in = BlipPlayer.class.getResourceAsStream("blips/" + b.getSample() + ".wav");
-				AudioInputStream audio = AudioSystem.getAudioInputStream(new BufferedInputStream(in)))
+			try (InputStream in = BlipPlayer.class.getResourceAsStream("blips/" + b.getSample() + ".wav"))
 			{
-				bundled.put(b, decode(audio));
+				bundled.put(b, Wav.decode(in.readAllBytes()));
 			}
 			catch (Exception e)
 			{
@@ -80,11 +77,6 @@ final class BlipPlayer
 			executor.shutdownNow();
 			executor = null;
 		}
-	}
-
-	File userDir()
-	{
-		return userDir;
 	}
 
 	/** Whether the folder holds a sample with this name (no extension), rescanning if it changed. */
@@ -118,17 +110,14 @@ final class BlipPlayer
 			for (File f : files)
 			{
 				String name = f.getName();
-				String lower = name.toLowerCase(Locale.ROOT);
-				if (!f.isFile() || f.length() > MAX_FILE_BYTES
-					|| !(lower.endsWith(".wav") || lower.endsWith(".aif") || lower.endsWith(".aiff")))
+				if (!f.isFile() || f.length() > MAX_FILE_BYTES || !name.toLowerCase(Locale.ROOT).endsWith(".wav"))
 				{
 					continue;
 				}
-				try (AudioInputStream audio = AudioSystem.getAudioInputStream(f))
+				try
 				{
-					byte[] pcm = decode(audio);
-					int maxFrames = (int) (FORMAT.getSampleRate() * MAX_SAMPLE_MS / 1000);
-					loaded.put(stripExtension(name), Resample.trim(pcm, maxFrames, 0));
+					byte[] pcm = Wav.decode(Files.readAllBytes(f.toPath()));
+					loaded.put(stripExtension(name), Resample.trim(pcm, Wav.RATE * MAX_SAMPLE_MS / 1000, 0));
 				}
 				catch (Exception e)
 				{
@@ -157,16 +146,32 @@ final class BlipPlayer
 		}
 		double cents = variationCents <= 0 ? 0 : (random.nextDouble() * 2 - 1) * variationCents;
 		double ratio = Resample.ratio(semitones, cents);
-		int maxFrames = lengthMs <= 0 ? 0 : (int) (FORMAT.getSampleRate() * lengthMs / 1000);
-		int fadeFrames = (int) (FORMAT.getSampleRate() * FADE_OUT_MS / 1000);
+		int maxFrames = lengthMs <= 0 ? 0 : Wav.RATE * lengthMs / 1000;
+		int fadeFrames = Wav.RATE * FADE_OUT_MS / 1000;
+		float gainDb = gainDb(volume);
 		ex.execute(() ->
 		{
 			byte[] data = sampleName != null ? pickUser(sampleName) : bundled.get(voice);
-			if (data != null)
+			if (data == null)
 			{
-				playNow(Resample.trim(Resample.shift(data, ratio), maxFrames, fadeFrames), volume);
+				return;
+			}
+			byte[] wav = Wav.encode(Resample.trim(Resample.shift(data, ratio), maxFrames, fadeFrames));
+			try
+			{
+				audio.play(new ByteArrayInputStream(wav), gainDb);
+			}
+			catch (Exception e)
+			{
+				log.debug("Quoth: blip failed", e);
 			}
 		});
+	}
+
+	/** 0-100 volume as decibels of gain; 100 is unity. */
+	static float gainDb(int volume)
+	{
+		return (float) (20 * Math.log10(Math.max(1, Math.min(100, volume)) / 100.0));
 	}
 
 	private byte[] pickUser(String name)
@@ -182,52 +187,9 @@ final class BlipPlayer
 		return null;
 	}
 
-	/** Decodes any Java Sound PCM input to {@link #FORMAT}: 16-bit, mono, 44.1 kHz. */
-	static byte[] decode(AudioInputStream audio) throws Exception
-	{
-		AudioFormat src = audio.getFormat();
-		AudioFormat pcm16 = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, src.getSampleRate(), 16,
-			src.getChannels(), src.getChannels() * 2, src.getSampleRate(), false);
-		byte[] data;
-		try (AudioInputStream converted = AudioSystem.getAudioInputStream(pcm16, audio))
-		{
-			data = converted.readAllBytes();
-		}
-		data = Resample.downmix(data, src.getChannels());
-		double rateRatio = src.getSampleRate() / FORMAT.getSampleRate();
-		return Math.abs(rateRatio - 1) < 1e-6 ? data : Resample.shift(data, rateRatio);
-	}
-
 	private static String stripExtension(String name)
 	{
 		int dot = name.lastIndexOf('.');
 		return dot > 0 ? name.substring(0, dot) : name;
-	}
-
-	private void playNow(byte[] data, int volume)
-	{
-		try
-		{
-			Clip clip = AudioSystem.getClip();
-			clip.open(FORMAT, data, 0, data.length);
-			if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN))
-			{
-				FloatControl gain = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-				float db = (float) (20 * Math.log10(volume / 100.0));
-				gain.setValue(Math.max(gain.getMinimum(), Math.min(gain.getMaximum(), db)));
-			}
-			clip.addLineListener(e ->
-			{
-				if (e.getType() == LineEvent.Type.STOP)
-				{
-					clip.close();
-				}
-			});
-			clip.start();
-		}
-		catch (Exception e)
-		{
-			log.debug("Quoth: blip failed", e);
-		}
 	}
 }

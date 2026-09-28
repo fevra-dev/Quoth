@@ -71,14 +71,4 @@ public class ResampleTest
 		assertArrayEquals(pcm, Resample.trim(pcm, 0, 10));
 	}
 
-	@Test
-	public void downmixAveragesChannels()
-	{
-		// one stereo frame: L = 1000, R = -3000 -> mono -1000
-		byte[] st = {(byte) 0xE8, 0x03, 0x48, (byte) 0xF4};
-		byte[] mono = Resample.downmix(st, 2);
-		assertEquals(2, mono.length);
-		assertEquals(-1000, (short) ((mono[0] & 0xff) | (mono[1] << 8)));
-		assertArrayEquals(st, Resample.downmix(st, 1));
-	}
 }

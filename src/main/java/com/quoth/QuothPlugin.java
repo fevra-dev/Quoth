@@ -14,6 +14,7 @@ import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetType;
 import net.runelite.client.RuneLite;
+import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
@@ -90,7 +91,11 @@ public class QuothPlugin extends Plugin
 	private ChatMessageManager chatMessageManager;
 
 	private final Random random = new Random();
-	private final BlipPlayer player = new BlipPlayer(new File(RuneLite.RUNELITE_DIR, "quoth"));
+	@Inject
+	private AudioPlayer audioPlayer;
+
+	// Built in startUp, once the AudioPlayer has been injected.
+	private BlipPlayer player;
 	private boolean immersiveActive;
 	private String voicedLine;
 	private long voicedStart;
@@ -156,6 +161,7 @@ public class QuothPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
+		player = new BlipPlayer(new File(RuneLite.RUNELITE_DIR, "quoth"), audioPlayer);
 		player.start();
 		keyManager.registerKeyListener(rollListener);
 		keyManager.registerKeyListener(spaceToFinish);
