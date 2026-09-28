@@ -300,20 +300,6 @@ public class QuothPlugin extends Plugin
 		return n;
 	}
 
-	/** Tells the player where the folder is and what loaded, since the settings panel cannot. */
-	private void reportSamples()
-	{
-		int count = player.refreshUser();
-		String where = player.userDir().getAbsolutePath();
-		String msg = count == 0
-			? "Quoth: no samples yet. Put WAV or AIFF files in " + where
-			: "Quoth: " + count + " sample" + (count == 1 ? "" : "s") + " in " + where;
-		chatMessageManager.queue(QueuedMessage.builder()
-			.type(ChatMessageType.GAMEMESSAGE)
-			.runeLiteFormattedMessage(msg)
-			.build());
-	}
-
 	private void roll()
 	{
 		int id = random.nextInt(SYNTH_COUNT);
@@ -512,7 +498,7 @@ public class QuothPlugin extends Plugin
 			sample = String.valueOf(id);
 		}
 		{
-			int pitch = config.pitch() + (config.speakerPitch() ? speakerPitch : 0);
+			int pitch = config.pitch() + voice.getPitch() + (config.speakerPitch() ? speakerPitch : 0);
 			int volume = config.volume();
 			if ((mood & Reveal.MOOD_QUESTION) != 0)
 			{
@@ -548,10 +534,6 @@ public class QuothPlugin extends Plugin
 
 		BlipSound voice = config.voice();
 		int id = config.soundId();
-		if ("voice".equals(event.getKey()) && voice == BlipSound.USER)
-		{
-			reportSamples();
-		}
 		if ("voice".equals(event.getKey()))
 		{
 			if (voice.isGamePreset() && id != voice.getId())

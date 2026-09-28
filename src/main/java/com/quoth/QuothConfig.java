@@ -99,7 +99,8 @@ public interface QuothConfig extends Config
 	)
 	default BlipSound voice()
 	{
-		return BlipSound.BOOP;
+		// Bundled, so per-speaker pitch and punctuation mood work on every machine.
+		return BlipSound.SOFT;
 	}
 
 	@Range(min = -12, max = 12)

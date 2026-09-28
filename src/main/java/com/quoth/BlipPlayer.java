@@ -145,7 +145,7 @@ final class BlipPlayer
 
 	/**
 	 * @param sampleName a sample in the folder to play, by name without extension; null plays
-	 *                   the bundled voice, or for {@link BlipSound#USER} a random sample
+	 *                   the bundled voice
 	 * @param semitones fixed pitch offset
 	 * @param variationCents random spread either side, per blip
 	 * @param volume 0-100
@@ -164,7 +164,7 @@ final class BlipPlayer
 		int fadeFrames = (int) (FORMAT.getSampleRate() * FADE_OUT_MS / 1000);
 		ex.execute(() ->
 		{
-			byte[] data = sampleName != null || voice == BlipSound.USER ? pickUser(sampleName) : bundled.get(voice);
+			byte[] data = sampleName != null ? pickUser(sampleName) : bundled.get(voice);
 			if (data != null)
 			{
 				playNow(Resample.trim(Resample.shift(data, ratio), maxFrames, fadeFrames), volume);
@@ -175,25 +175,14 @@ final class BlipPlayer
 	private byte[] pickUser(String name)
 	{
 		refreshUser();
-		Map<String, byte[]> samples = user;
-		if (samples.isEmpty())
+		for (Map.Entry<String, byte[]> e : user.entrySet())
 		{
-			return null;
-		}
-		String wanted = name == null ? "" : stripExtension(name.trim());
-		if (!wanted.isEmpty())
-		{
-			for (Map.Entry<String, byte[]> e : samples.entrySet())
+			if (e.getKey().equalsIgnoreCase(name))
 			{
-				if (e.getKey().equalsIgnoreCase(wanted))
-				{
-					return e.getValue();
-				}
+				return e.getValue();
 			}
-			return null;
 		}
-		byte[][] all = samples.values().toArray(new byte[0][]);
-		return all[random.nextInt(all.length)];
+		return null;
 	}
 
 	/** Decodes any Java Sound PCM input to {@link #FORMAT}: 16-bit, mono, 44.1 kHz. */
