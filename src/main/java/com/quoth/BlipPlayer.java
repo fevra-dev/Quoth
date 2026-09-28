@@ -64,10 +64,7 @@ final class BlipPlayer
 				log.warn("Quoth: could not load blip {}", b, e);
 			}
 		}
-		if (!userDir.isDirectory() && !userDir.mkdirs())
-		{
-			log.warn("Quoth: could not create {}", userDir);
-		}
+		// The samples folder is optional and never created: only read if the player made it.
 		executor = Executors.newSingleThreadExecutor(r ->
 		{
 			Thread t = new Thread(r, "quoth-blips");
