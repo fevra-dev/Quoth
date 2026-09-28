@@ -30,12 +30,4 @@ public class BlipSoundTest
 			}
 		}
 	}
-
-	@Test
-	public void highVariantCarriesAnOctaveButTypingPicksThePlainOne()
-	{
-		assertEquals(12, BlipSound.SOUND_2269_HIGH.getPitch());
-		assertEquals(2269, BlipSound.SOUND_2269_HIGH.getId());
-		assertEquals(BlipSound.SOUND_2269, BlipSound.presetFor(2269));
-	}
 }

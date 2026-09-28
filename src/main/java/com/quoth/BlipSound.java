@@ -19,15 +19,13 @@ public enum BlipSound
 	// .runelite/quoth when there is one (so pitch, volume and mood apply), else from the game.
 	SOUND_1833("Game 1833", null, 1833, 0),
 	SOUND_2215("Game 2215", null, 2215, 0),
-	BOOP("Game 2266 (Boop)", null, 2266, 0),
+	BOOP("Game 2266", null, 2266, 0),
 	SOUND_2269("Game 2269", null, 2269, 0),
-	SOUND_2269_HIGH("Game 2269 (high)", null, 2269, 12),
 	SOUND_2278("Game 2278", null, 2278, 0),
 	SOUND_5242("Game 5242", null, 5242, 0),
 	SOUND_7013("Game 7013", null, 7013, 0),
 	CUSTOM("Game (Custom ID)", null, -1, 0);
 
-	// Typing an ID selects the plain preset; "Game 2269 (high)" is only picked from the list.
 	private static final BlipSound[] GAME_PRESETS = {
 		SOUND_1833, SOUND_2215, BOOP, SOUND_2269, SOUND_2278, SOUND_5242, SOUND_7013
 	};
