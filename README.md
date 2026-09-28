@@ -2,7 +2,7 @@
 
 Dialogue that speaks, like the old RPGs.
 
-![Talking to Hans in Lumbridge with Quoth](docs/demo.gif)
+![Talking to Hans in Lumbridge with Quoth](docs/hans_word.gif)
 
 NPC dialogue types itself out in the chatbox one word at a time, with a soft voice blip for each
 word. Lines breathe at commas and stop at full stops. Every NPC has a voice of their own: the Cook
@@ -21,6 +21,14 @@ Everything happens inside the game's own chatbox. There is no new panel to place
 - **Mood.** A question lifts the last blip, and an exclamation makes it louder.
 - **Never skip a line half-read.** While a line is still appearing, the first click on *Click here
   to continue* (or Space) shows the rest of it. The next click continues as normal.
+
+## Reveal styles
+
+| Letter | Fade |
+|---|---|
+| ![Letter by letter](docs/hans_letter.gif) | ![Each word fading in](docs/hans_fade.gif) |
+
+*Word*, shown at the top, is the default.
 
 ## Settings
 
