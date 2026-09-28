@@ -257,6 +257,88 @@ SQUARE_Q = {
     "sq-q-letter": sq_q_letter,
 }
 
+# --- Final round: wave-filled in palettes, and the solid square Q holding waves.
+SAGE, SLATE, BRICK = (143, 170, 128), (122, 150, 184), (196, 98, 76)
+BARS = ((15, 4), (20, 9), (25, 6), (30, 11), (35, 4))
+
+
+def wave_filled_in(bubble_color, bar_color, tile=None):
+    def draw(d):
+        if tile is not None:
+            d.rounded_rectangle([0, 0, W * SS - 1, H * SS - 1], radius=6 * SS, fill=tile)
+        filled_bubble(d, (8, 20, 40, 44), bubble_color)
+        for x, h in BARS:
+            d.rounded_rectangle(s(x - 1.2, 32 - h / 2, x + 1.2, 32 + h / 2), radius=SS, fill=bar_color)
+    return draw
+
+
+def sq_solid(d):
+    d.rounded_rectangle(s(*BOX), radius=7 * SS, fill=INK)
+    q_leg(d, INK, 5)
+
+
+def bar(d, x, h, cy=33, w=1.2, c=TILE):
+    d.rounded_rectangle(s(x - w, cy - h / 2, x + w, cy + h / 2), radius=SS, fill=c)
+
+
+def sqw_even(d):
+    sq_solid(d)
+    for x in (16, 20, 24, 28, 32):
+        bar(d, x, 7)
+
+
+def sqw_peak(d):
+    sq_solid(d)
+    for x, h in ((15, 3), (18.5, 6), (22, 10), (25.5, 14), (29, 9), (32.5, 4)):
+        bar(d, x, h, w=1.1)
+
+
+def sqw_sine(d):
+    import math
+    sq_solid(d)
+    pts = [(14 + i * 0.4, 33 - 5 * math.sin(i * 0.4 * 0.55)) for i in range(0, 51)]
+    d.line([(x * SS, y * SS) for x, y in pts], fill=TILE, width=int(2.4 * SS), joint="curve")
+
+
+def sqw_arcs(d):
+    # A speaker's sound: a dot and three widening arcs.
+    sq_solid(d)
+    d.ellipse(s(14, 30.5, 19, 35.5), fill=TILE)
+    for i, r in enumerate((6, 10, 14)):
+        c = AMBER if i == 2 else TILE
+        d.arc(s(16.5 - r, 33 - r, 16.5 + r, 33 + r), start=-45, end=45, fill=c, width=int(2.2 * SS))
+
+
+def sqw_dotted(d):
+    import math
+    sq_solid(d)
+    for i in range(8):
+        x = 14.5 + i * 2.5
+        y = 33 - 4.5 * math.sin(i * 0.8)
+        d.ellipse(s(x - 1.2, y - 1.2, x + 1.2, y + 1.2), fill=AMBER if i == 7 else TILE)
+
+
+def sqw_amber_peak(d):
+    sq_solid(d)
+    for x, h in ((15.5, 4), (20, 8), (24.5, 13), (29, 7), (33.5, 4)):
+        bar(d, x, h, c=AMBER if h == 13 else TILE)
+
+
+FINAL = {
+    "wave-amber": wave_filled_in(AMBER, TILE),
+    "wave-cream": wave_filled_in(INK, TILE),
+    "wave-sage": wave_filled_in(SAGE, TILE),
+    "wave-slate": wave_filled_in(SLATE, TILE),
+    "wave-brick": wave_filled_in(BRICK, TILE),
+    "wave-inverse": wave_filled_in(TILE, AMBER, tile=INK),
+    "sqw-even": sqw_even,
+    "sqw-peak": sqw_peak,
+    "sqw-sine": sqw_sine,
+    "sqw-arcs": sqw_arcs,
+    "sqw-dotted": sqw_dotted,
+    "sqw-amber-peak": sqw_amber_peak,
+}
+
 def render(concepts, sheet_name, cols):
     icons = []
     for name, draw in concepts.items():
@@ -287,6 +369,7 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     n = render(CONCEPTS, "sheet.png", 4) + render(VARIANTS, "sheet-variants.png", 3)
     n += render(SQUARE_Q, "sheet-square-q.png", 4)
+    n += render(FINAL, "sheet-final.png", 6)
     print("wrote", n, "icons to", OUT)
 
 
