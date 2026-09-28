@@ -34,18 +34,18 @@ public interface QuothConfig extends Config
 		return RevealMode.WORD;
 	}
 
-	@Range(min = 50, max = 2000)
+	@Range(min = 40, max = 600)
 	@Units(Units.MILLISECONDS)
 	@ConfigItem(
-		keyName = "fadeLength",
-		name = "Fade length",
-		description = "For Fade: how long each word takes to go from faint to full",
+		keyName = "pace",
+		name = "Pace",
+		description = "Time per word. Letters and fades follow it: at 130 ms a letter takes 70 ms and a fade 390 ms",
 		section = textSection,
-		position = 3
+		position = 1
 	)
-	default int fadeLength()
+	default int pace()
 	{
-		return 390;
+		return 130;
 	}
 
 	@ConfigItem(
@@ -53,47 +53,18 @@ public interface QuothConfig extends Config
 		name = "Click to finish",
 		description = "While a line is appearing, the first click on continue (or Space) shows the rest; the next continues",
 		section = textSection,
-		position = 4
+		position = 2
 	)
 	default boolean clickToFinish()
 	{
 		return true;
 	}
 
-	// Own keys per mode: a value stored under an older shared key would override new defaults.
-	@Range(min = 10, max = 600)
-	@Units(Units.MILLISECONDS)
-	@ConfigItem(
-		keyName = "wordDelay",
-		name = "Word delay",
-		description = "Time between words when revealing by word",
-		section = textSection,
-		position = 1
-	)
-	default int wordDelay()
-	{
-		return 130;
-	}
-
-	@Range(min = 10, max = 300)
-	@Units(Units.MILLISECONDS)
-	@ConfigItem(
-		keyName = "letterDelay",
-		name = "Letter delay",
-		description = "Time between letters when revealing by letter",
-		section = textSection,
-		position = 2
-	)
-	default int letterDelay()
-	{
-		return 70;
-	}
-
 	// New key: "blip" stored values like RANDOM no longer exist in this list.
 	@ConfigItem(
 		keyName = "voice",
 		name = "Voice",
-		description = "Numbers are game sounds. Any with a matching file in .runelite/quoth (e.g. 2266.wav) play from it and take Pitch, Volume and mood; others play from the game as-is",
+		description = "Soft, Warm and Reed take every setting. Game voices play the game's own sound, so Pitch, Volume, speaker voices and mood only reach them if you have a matching file in .runelite/quoth",
 		section = voiceSection,
 		position = 0
 	)
@@ -107,7 +78,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "pitch",
 		name = "Pitch",
-		description = "Semitones up or down. Applies to every voice that plays from a file",
+		description = "Semitones up or down, for Soft, Warm and Reed",
 		section = voiceSection,
 		position = 1
 	)
@@ -121,7 +92,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "speakerPitch",
 		name = "Voice per speaker",
-		description = "Each NPC gets a pitch of their own from their name; goblins, dwarves and other big folk sound lower, gnomes and imps higher",
+		description = "Each NPC gets a pitch of their own from their name; goblins and dwarves sound lower, gnomes and imps higher. Soft, Warm and Reed",
 		section = voiceSection,
 		position = 2
 	)
@@ -135,7 +106,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "volume",
 		name = "Volume",
-		description = "For voices that play from a file; plain game sounds use the in-game effects volume",
+		description = "For Soft, Warm and Reed; game voices follow the in-game sound effects volume",
 		section = voiceSection,
 		position = 3
 	)

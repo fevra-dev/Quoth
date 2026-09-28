@@ -273,7 +273,7 @@ public class QuothPlugin extends Plugin
 
 	private int voicedDelay()
 	{
-		return config.mode() == RevealMode.LETTER ? config.letterDelay() : config.wordDelay();
+		return config.mode().delay(config.pace());
 	}
 
 	/** An NPC speaking gets a pitch from their name; the player and message boxes stay central. */
@@ -409,7 +409,7 @@ public class QuothPlugin extends Plugin
 
 		long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L;
 		int delay = Math.max(1, delay());
-		int fadeMs = Math.max(1, config.fadeLength());
+		int fadeMs = RevealMode.fadeLength(config.pace());
 		int target = reveal.startedBy(elapsedMs, delay);
 		boolean stepped = target > shown;
 
@@ -514,7 +514,7 @@ public class QuothPlugin extends Plugin
 
 	private int delay()
 	{
-		return mode == RevealMode.LETTER ? config.letterDelay() : config.wordDelay();
+		return mode.delay(config.pace());
 	}
 
 	/**
