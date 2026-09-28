@@ -6,16 +6,16 @@ Dialogue that speaks, like the old RPGs.
 
 NPC dialogue types itself out in the chatbox one word at a time, with a soft voice blip for each
 word. Lines breathe at commas and stop at full stops. Every NPC has a voice of their own: Hans
-always sounds like Hans, the Ogre trader sounds gruff, and Fairy Nuff sounds small.
+always sounds like Hans, ogres sound gruff, and fairies sound small.
 
 Everything happens inside the game's own chatbox. There is no new panel to place or resize.
 
 ## How it sounds
 
 - **A voice per speaker.** Each NPC's pitch is fixed by their name, so characters sound different
-  from each other and the same every time you meet them. Big folk sit lower, such as the Barbarian
-  guard, the Ogre trader and the Dwarven Boatman. Small folk sit higher, such as Fairy Nuff, the
-  Fairy Godfather and the Gnome banker. Your own lines stay at the base pitch.
+  from each other and the same every time you meet them. Big folk like barbarians, ogres and dwarves
+  sound lower; small folk like gnomes and fairies sound higher. Your own lines stay at the base
+  pitch.
 - **Speech rhythm.** A short pause after a comma, a longer one after a full stop, and the longest
   after "...". *"Erm... Sorry, I don't have any of that with me..."* lands like speech.
 - **Mood.** A question lifts the last blip, and an exclamation makes it louder.
@@ -46,7 +46,7 @@ Everything happens inside the game's own chatbox. There is no new panel to place
 |---|---|---|
 | Voice | Soft | *Soft*, *Softer*, *Warm*, *Reed*, *Bell*, *Pip* or *Wood*, or one of the game's own sounds |
 | Pitch | 0 | Semitones up or down |
-| Voice per speaker | On | Each NPC gets their own pitch; ogres, dwarves and barbarians sound lower, gnomes and fairies higher |
+| Voice per speaker | On | Each NPC gets their own pitch; barbarians, ogres and dwarves sound lower, gnomes and fairies higher |
 | Volume | 60% | How loud the voice is |
 
 Quoth's own voices (Soft to Wood) take every setting above. The *Game* voices play the game's own

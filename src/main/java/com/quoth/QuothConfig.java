@@ -92,7 +92,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "speakerPitch",
 		name = "Voice per speaker",
-		description = "Each NPC gets a pitch of their own from their name; ogres, dwarves and barbarians sound lower, gnomes and fairies higher. Quoth's own voices",
+		description = "Each NPC gets a pitch of their own from their name; barbarians, ogres and dwarves sound lower, gnomes and fairies higher. Quoth's own voices",
 		section = voiceSection,
 		position = 2
 	)
