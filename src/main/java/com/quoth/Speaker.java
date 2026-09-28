@@ -12,7 +12,7 @@ final class Speaker
 	static final int SPECIES_SPREAD = 2;
 
 	private static final String[] GRUFF = {
-		"goblin", "hobgoblin", "dwarf", "troll", "ogre", "ogress", "giant", "demon", "dragon",
+		"goblin", "hobgoblin", "dwarf", "dwarven", "troll", "ogre", "ogress", "giant", "demon", "dragon",
 		"golem", "barbarian", "orc", "cyclops", "gorilla", "bear"
 	};
 	private static final String[] SMALL = {
