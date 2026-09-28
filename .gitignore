@@ -8,5 +8,6 @@ nbactions.xml
 nb-configuration.xml
 nbproject/
 *.class
-# raw screen recordings; the README uses docs/demo.gif
+# raw screen recordings; the README uses the docs/hans_*.gif made from them
 docs/demovid/
+.DS_Store
