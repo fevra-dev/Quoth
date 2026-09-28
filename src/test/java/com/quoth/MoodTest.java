@@ -38,15 +38,29 @@ public class MoodTest
 	@Test
 	public void bigFolkSoundLowerAndSmallFolkHigher()
 	{
-		for (String n : new String[]{"Goblin", "Dwarf", "Mountain Dwarf", "Cave goblin guard", "Hill Giant", "Ogress Warrior"})
+		for (String n : new String[]{"Barbarian guard", "Ogre trader", "Dwarven Boatman", "Goblin", "Hill Giant", "Ogress Warrior"})
 		{
 			int p = Speaker.pitchFor(n);
 			assertTrue(n + " -> " + p, p <= -Speaker.SPECIES_SHIFT + Speaker.SPECIES_SPREAD);
 		}
-		for (String n : new String[]{"Gnome child", "Imp", "Fairy Nuff"})
+		for (String n : new String[]{"Fairy Nuff", "Fairy Godfather", "Gnome banker", "Gnome trainer", "Gnome Coach"})
 		{
 			int p = Speaker.pitchFor(n);
 			assertTrue(n + " -> " + p, p >= Speaker.SPECIES_SHIFT - Speaker.SPECIES_SPREAD);
+		}
+	}
+
+	@Test
+	public void talkableNpcsAreRecognisedBySpeciesNotByNameLuck()
+	{
+		// Checked against the OSRS Wiki: each has a Talk-to option.
+		for (String n : new String[]{"barbarian guard", "ogre trader", "dwarven boatman"})
+		{
+			assertEquals(n, -Speaker.SPECIES_SHIFT, Speaker.speciesShift(n));
+		}
+		for (String n : new String[]{"fairy nuff", "fairy godfather", "gnome banker", "gnome trainer", "gnome coach"})
+		{
+			assertEquals(n, Speaker.SPECIES_SHIFT, Speaker.speciesShift(n));
 		}
 	}
 
