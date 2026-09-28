@@ -10,7 +10,7 @@ public enum BlipSound
 	OFF("Off", null, -1, 0),
 	SOFT("Soft", "soft", -1, 0),
 	WARM("Warm", "warm", -1, 0),
-	SOFTER("Softer", "soft", -1, -9),
+	SOFTER("Softer", "soft", -1, -7),
 	REED("Reed", "reed", -1, 0),
 	BELL("Bell", "bell", -1, 0),
 	PIP("Pip", "pip", -1, 0),
