@@ -181,6 +181,82 @@ VARIANTS = {
 }
 
 
+# --- Square Q: the chat bubble is a squared Q whose leg is also the bubble's tail.
+BOX = (9, 19, 39, 47)  # the Q's bowl
+
+
+def q_leg(d, color, width=4):
+    # The leg crosses the bowl's bottom-right corner and runs out down-right, like a Q's tail.
+    d.line(s(29, 39, 40, 52), fill=color, width=width * SS)
+
+
+def sq_outline(d, stroke=4, radius=7):
+    d.rounded_rectangle(s(*BOX), radius=radius * SS, outline=INK, width=stroke * SS)
+
+
+def sq_q_outline(d):
+    sq_outline(d)
+    q_leg(d, AMBER)
+
+
+def sq_q_filled(d):
+    d.rounded_rectangle(s(*BOX), radius=7 * SS, fill=INK)
+    d.rounded_rectangle(s(17, 27, 31, 39), radius=3 * SS, fill=TILE)
+    q_leg(d, AMBER, 5)
+
+
+def sq_q_dots(d):
+    sq_outline(d)
+    q_leg(d, INK)
+    for x, c in ((17, INK), (24, INK), (31, AMBER)):
+        d.ellipse(s(x - 2.2, 30.8, x + 2.2, 35.2), fill=c)
+
+
+def sq_q_wave(d):
+    sq_outline(d)
+    q_leg(d, INK)
+    for x, h in ((16, 4), (20.5, 9), (25, 6), (29.5, 11)):
+        d.rounded_rectangle(s(x - 1.1, 33 - h / 2, x + 1.1, 33 + h / 2), radius=SS, fill=AMBER if x == 25 else INK)
+
+
+def sq_q_filled_dots(d):
+    d.rounded_rectangle(s(*BOX), radius=7 * SS, fill=INK)
+    q_leg(d, INK, 5)
+    for x, c in ((17, TILE), (24, TILE), (31, AMBER)):
+        d.ellipse(s(x - 2.4, 30.6, x + 2.4, 35.4), fill=c)
+
+
+def sq_q_amber(d):
+    d.rounded_rectangle(s(*BOX), radius=7 * SS, fill=AMBER)
+    d.rounded_rectangle(s(17, 27, 31, 39), radius=3 * SS, fill=TILE)
+    q_leg(d, INK, 5)
+
+
+def sq_q_bold(d):
+    # Heavy bowl, the leg cut through the stroke in the tile colour, then drawn out in amber.
+    sq_outline(d, stroke=6, radius=8)
+    d.line(s(27, 37, 34, 45), fill=TILE, width=6 * SS)
+    d.line(s(30, 40, 40, 52), fill=AMBER, width=5 * SS)
+
+
+def sq_q_letter(d):
+    # The squared Q bubble with the letter itself typed inside it, in amber.
+    sq_outline(d, stroke=3)
+    q_leg(d, INK, 3)
+    d.text((24 * SS, 33 * SS), "Q", font=font(15), fill=AMBER, anchor="mm")
+
+
+SQUARE_Q = {
+    "sq-q-outline": sq_q_outline,
+    "sq-q-filled": sq_q_filled,
+    "sq-q-dots": sq_q_dots,
+    "sq-q-wave": sq_q_wave,
+    "sq-q-filled-dots": sq_q_filled_dots,
+    "sq-q-amber": sq_q_amber,
+    "sq-q-bold": sq_q_bold,
+    "sq-q-letter": sq_q_letter,
+}
+
 def render(concepts, sheet_name, cols):
     icons = []
     for name, draw in concepts.items():
@@ -210,6 +286,7 @@ def render(concepts, sheet_name, cols):
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     n = render(CONCEPTS, "sheet.png", 4) + render(VARIANTS, "sheet-variants.png", 3)
+    n += render(SQUARE_Q, "sheet-square-q.png", 4)
     print("wrote", n, "icons to", OUT)
 
 
