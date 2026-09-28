@@ -10,7 +10,11 @@ public enum BlipSound
 	OFF("Off", null, -1, 0),
 	SOFT("Soft", "soft", -1, 0),
 	WARM("Warm", "warm", -1, 0),
+	SOFTER("Softer", "soft", -1, -9),
 	REED("Reed", "reed", -1, 0),
+	BELL("Bell", "bell", -1, 0),
+	PIP("Pip", "pip", -1, 0),
+	WOOD("Wood", "wood", -1, 0),
 	// Game sounds by ID, ascending, picked by ear. Each plays from a matching stab file in
 	// .runelite/quoth when there is one (so pitch, volume and mood apply), else from the game.
 	SOUND_1833("Game 1833", null, 1833, 0),

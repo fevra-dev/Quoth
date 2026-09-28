@@ -64,7 +64,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "voice",
 		name = "Voice",
-		description = "Soft, Warm and Reed take every setting. Game voices play the game's own sound, so Pitch, Volume, speaker voices and mood only reach them if you have a matching file in .runelite/quoth",
+		description = "Quoth's own voices (Soft to Wood) take every setting. Game voices play the game's own sound, so Pitch, Volume, speaker voices and mood only reach them if you have a matching file in .runelite/quoth",
 		section = voiceSection,
 		position = 0
 	)
@@ -78,7 +78,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "pitch",
 		name = "Pitch",
-		description = "Semitones up or down, for Soft, Warm and Reed",
+		description = "Semitones up or down, for Quoth's own voices",
 		section = voiceSection,
 		position = 1
 	)
@@ -92,7 +92,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "speakerPitch",
 		name = "Voice per speaker",
-		description = "Each NPC gets a pitch of their own from their name; goblins and dwarves sound lower, gnomes and imps higher. Soft, Warm and Reed",
+		description = "Each NPC gets a pitch of their own from their name; goblins and dwarves sound lower, gnomes and imps higher. Quoth's own voices",
 		section = voiceSection,
 		position = 2
 	)
@@ -106,7 +106,7 @@ public interface QuothConfig extends Config
 	@ConfigItem(
 		keyName = "volume",
 		name = "Volume",
-		description = "For Soft, Warm and Reed; game voices follow the in-game sound effects volume",
+		description = "For Quoth's own voices; game voices follow the in-game sound effects volume",
 		section = voiceSection,
 		position = 3
 	)
