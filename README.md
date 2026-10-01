@@ -60,9 +60,10 @@ volume, and Pitch, speaker voices and mood do not reach them.
 | Custom sound ID | Any of the game's sound effect IDs, used when Voice is *Game (Custom ID)* |
 | Roll random sound | A key that plays a random game sound, makes it your Custom sound ID and prints its number in chat, for hunting new voices |
 
-If you put your own WAV file named after a sound ID in `.runelite/quoth` (for example `2266.wav`),
-that Game voice plays from your file instead, and Pitch, speaker voices and mood apply to it. Quoth
-only reads that folder if you create it.
+If you put your own WAV file named after a sound ID in `.runelite/plugin-data/quoth` (for example
+`2266.wav`), that Game voice plays from your file instead, and Pitch, speaker voices and mood apply
+to it. Quoth only reads that folder if you create it. A folder from an older version at
+`.runelite/quoth` is moved there automatically.
 
 ## Works with
 

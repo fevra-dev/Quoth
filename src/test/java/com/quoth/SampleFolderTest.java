@@ -8,6 +8,8 @@ import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
+import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.util.Filepath;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -94,15 +96,38 @@ public class SampleFolderTest
 		Files.write(new File(dir, "b.WAV").toPath(), wav(48000, 16, 2, 480, 1));
 		Files.write(new File(dir, "notes.txt").toPath(), "hi".getBytes());
 		Files.write(new File(dir, "broken.wav").toPath(), "not audio".getBytes());
-		assertEquals(2, new BlipPlayer(dir, null).refreshUser());
+		assertEquals(2, new BlipPlayer(folder(dir), null).refreshUser());
 	}
 
 	@Test
 	public void missingFolderLoadsNothingAndIsNotCreated()
 	{
 		File absent = new File(tmp.getRoot(), "absent");
-		assertEquals(0, new BlipPlayer(absent, null).refreshUser());
+		assertEquals(0, new BlipPlayer(folder(absent), null).refreshUser());
 		assertFalse(absent.exists());
+	}
+
+	@Test
+	public void noFolderFromTheClientLoadsNothing()
+	{
+		BlipPlayer p = new BlipPlayer(null, null);
+		assertEquals(0, p.refreshUser());
+		assertFalse(p.hasUser("2266"));
+	}
+
+	/** Without internalName the client throws instead of giving a folder. */
+	@Test
+	public void descriptorNamesTheHubPluginAndAnAcceptedLegacyFolder()
+	{
+		PluginDescriptor d = QuothPlugin.class.getAnnotation(PluginDescriptor.class);
+		assertEquals("quoth", d.internalName());
+		Filepath.Unchecked.getLegacyPluginDirectory(tmp.getRoot().toPath(), d.legacyDataDirectory());
+	}
+
+	/** The client hands plugins a Filepath; tests stand one up over a temp folder. */
+	private static Filepath folder(File dir)
+	{
+		return Filepath.Unchecked.getRooted(dir.toPath());
 	}
 
 	@Test
@@ -110,7 +135,7 @@ public class SampleFolderTest
 	{
 		File dir = tmp.newFolder("ids");
 		Files.write(new File(dir, "2266.WAV").toPath(), wav(22050, 16, 1, 441, 1));
-		BlipPlayer p = new BlipPlayer(dir, null);
+		BlipPlayer p = new BlipPlayer(folder(dir), null);
 		assertTrue(p.hasUser("2266"));
 		assertFalse(p.hasUser("9999"));
 	}

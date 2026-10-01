@@ -1,19 +1,21 @@
 package com.quoth;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.audio.AudioPlayer;
+import net.runelite.client.util.Filepath;
 
 /**
  * Plays Quoth's own voices, and any sound files the player has added, through RuneLite's
@@ -32,13 +34,14 @@ final class BlipPlayer
 
 	private final Map<BlipSound, byte[]> bundled = new EnumMap<>(BlipSound.class);
 	private final Random random = new Random();
-	private final File userDir;
+	private final Filepath userDir;
 	private final AudioPlayer audio;
 	private volatile Map<String, byte[]> user = new LinkedHashMap<>();
 	private long userDirStamp = Long.MIN_VALUE;
 	private ExecutorService executor;
 
-	BlipPlayer(File userDir, AudioPlayer audio)
+	/** @param userDir the player's sound file folder; null when the client could not provide one */
+	BlipPlayer(Filepath userDir, AudioPlayer audio)
 	{
 		this.userDir = userDir;
 		this.audio = audio;
@@ -96,37 +99,71 @@ final class BlipPlayer
 	/** Rescans the samples folder if it changed and returns how many samples loaded. */
 	synchronized int refreshUser()
 	{
-		long stamp = userDir.lastModified();
+		long stamp = lastModified(userDir);
 		if (stamp == userDirStamp)
 		{
 			return user.size();
 		}
 		userDirStamp = stamp;
 		Map<String, byte[]> loaded = new LinkedHashMap<>();
-		File[] files = userDir.listFiles();
-		if (files != null)
+		for (Filepath f : listFiles(userDir))
 		{
-			Arrays.sort(files);
-			for (File f : files)
+			String name = f.getFileName();
+			if (!f.isFile() || !name.toLowerCase(Locale.ROOT).endsWith(".wav"))
 			{
-				String name = f.getName();
-				if (!f.isFile() || f.length() > MAX_FILE_BYTES || !name.toLowerCase(Locale.ROOT).endsWith(".wav"))
+				continue;
+			}
+			try (InputStream in = f.openInputStream())
+			{
+				if (f.size() > MAX_FILE_BYTES)
 				{
 					continue;
 				}
-				try
-				{
-					byte[] pcm = Wav.decode(Files.readAllBytes(f.toPath()));
-					loaded.put(stripExtension(name), Resample.trim(pcm, Wav.RATE * MAX_SAMPLE_MS / 1000, 0));
-				}
-				catch (Exception e)
-				{
-					log.warn("Quoth: skipped sample {}: {}", name, e.getMessage());
-				}
+				byte[] pcm = Wav.decode(in.readAllBytes());
+				loaded.put(stripExtension(name), Resample.trim(pcm, Wav.RATE * MAX_SAMPLE_MS / 1000, 0));
+			}
+			catch (Exception e)
+			{
+				log.warn("Quoth: skipped sample {}: {}", name, e.getMessage());
 			}
 		}
 		user = loaded;
 		return loaded.size();
+	}
+
+	/** Milliseconds, or 0 when there is no folder, which matches File.lastModified. */
+	private static long lastModified(Filepath dir)
+	{
+		if (dir == null || !dir.isDirectory())
+		{
+			return 0;
+		}
+		try
+		{
+			return dir.getLastModifiedTime().toMillis();
+		}
+		catch (IOException e)
+		{
+			return 0;
+		}
+	}
+
+	/** The folder's direct children in name order; empty when there is no folder. */
+	private static List<Filepath> listFiles(Filepath dir)
+	{
+		if (dir == null || !dir.isDirectory())
+		{
+			return List.of();
+		}
+		try (Stream<Filepath> s = dir.walk(1))
+		{
+			return s.filter(f -> !f.equals(dir)).sorted().collect(Collectors.toList());
+		}
+		catch (IOException e)
+		{
+			log.warn("Quoth: could not list sound files: {}", e.getMessage());
+			return List.of();
+		}
 	}
 
 	/**

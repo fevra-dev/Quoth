@@ -2,7 +2,7 @@ package com.quoth;
 
 import com.google.inject.Provides;
 import java.awt.event.KeyEvent;
-import java.io.File;
+import java.io.IOException;
 import java.util.Random;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +13,6 @@ import net.runelite.api.events.MenuOptionClicked;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetType;
-import net.runelite.client.RuneLite;
 import net.runelite.client.audio.AudioPlayer;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageManager;
@@ -27,6 +26,7 @@ import net.runelite.client.input.KeyManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginManager;
+import net.runelite.client.util.Filepath;
 import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.Text;
 
@@ -34,7 +34,10 @@ import net.runelite.client.util.Text;
 @PluginDescriptor(
 	name = "Quoth",
 	description = "Dialogue types itself out in the chatbox, word by word, with an optional voice blip",
-	tags = {"dialogue", "typewriter", "chatbox", "rpg", "text", "immersion", "sound"}
+	tags = {"dialogue", "typewriter", "chatbox", "rpg", "text", "immersion", "sound"},
+	internalName = "quoth",
+	// Sound files used to live in .runelite/quoth; the client moves that folder over once.
+	legacyDataDirectory = "quoth"
 )
 public class QuothPlugin extends Plugin
 {
@@ -161,7 +164,16 @@ public class QuothPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		player = new BlipPlayer(new File(RuneLite.RUNELITE_DIR, "quoth"), audioPlayer);
+		Filepath samples = null;
+		try
+		{
+			samples = getPluginDirectory();
+		}
+		catch (IOException e)
+		{
+			log.warn("Quoth: sound file folder unavailable, bundled voices only", e);
+		}
+		player = new BlipPlayer(samples, audioPlayer);
 		player.start();
 		keyManager.registerKeyListener(rollListener);
 		keyManager.registerKeyListener(spaceToFinish);
